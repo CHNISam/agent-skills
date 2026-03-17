@@ -1,0 +1,4 @@
+interface:
+  display_name: "Aliyun Manual Testcase XLSX"
+  short_description: "依据 PRD、原型与对话生成阿里云手动导入测试用例 XLSX"
+  default_prompt: "Use $generate-aliyun-testcase-xlsx to turn the current PRD, prototype, or conversation notes into an Aliyun manual-import XLSX test case file."
