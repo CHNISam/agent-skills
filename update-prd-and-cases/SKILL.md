@@ -39,14 +39,21 @@ description: >
 2. 读取该轮次下的所有产物：
    - **缺陷清单**（`.xlsx`）— 用 pandas 读取，提取标题、优先级、状态
    - **改进建议**（`improvements.md`）— 直接读取
-   - **测试报告**（`.pdf`）— 尝试用 PDF skill 读取，若不可用则跳过
+   - **测试报告** — 灵活读取，优先尝试以下格式：
+     - `.pdf` → 用 PDF skill 读取
+     - `.md` → 直接读取
+     - `.docx` → 用 docx skill 读取
+     - `.xlsx` → 用 xlsx skill 读取
+     - `.txt` → 直接读取
+     - 若均不可用则跳过，不影响流程
 3. 读取 `agent-context/testing/README.md` 了解目录规范
 
 ### Phase 2: 读取现有文档
 
 1. **PRD**：读取 `agent-context/prototype/**/docs/PRD.md`，或 `agent-context/` 下的 PDF 版
 2. **测试用例总表**：找到 `agent-context/` 根目录下的 `.xlsx` 测试用例文件，用 pandas 读取
-3. 记录：
+3. **测试报告**（如需补充参考）：读取 `agent-context/` 下的测试报告文件，支持格式同上
+4. 记录：
    - 总表的列结构（表头字段）
    - 现有用例的目录分布（哪些模块已有用例、哪些是空的）
    - 现有用例数量
@@ -133,7 +140,7 @@ description: >
 ## 本轮测试资料摘要
 - 缺陷清单：N 条
 - 改进建议：M 条
-- 测试报告：已读取 / 无法读取
+- 测试报告：已读取（格式：XXX）/ 无法读取
 
 ## PRD 更新
 - 补充了 xxx 业务规则
