@@ -21,7 +21,7 @@ When two sources conflict, prefer the more specific and more recent artifact. If
 | 前置条件 | Yes | Describe the state required before the action. Keep it concise and testable. |
 | 步骤描述 | Yes | Describe the primary action for this row. Split multi-assert journeys into separate cases. |
 | 预期结果 | Yes | Describe the observable result for this row only. Avoid bundling multiple unrelated assertions. |
-| 关联需求 | No | Fill with PRD section, story ID, change ID, or screen name when the source gives one. Otherwise leave blank. |
+| 关联需求 | No | 留空。不填写。 |
 | 优先级 | Yes | Use `P0` for core paths, red lines, payments, permissions, delivery, and blocking failures; `P1` for common branches and exception handling; `P2` or `P3` for lower-frequency or polish cases. |
 | 类型 | Yes | Default to `功能测试`. Use another type only when the user or source material clearly asks for it. |
 | 标签 | No | Use only when the user already has a tagging scheme. Otherwise leave blank. |
