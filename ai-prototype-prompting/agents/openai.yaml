@@ -1,4 +1,0 @@
-interface:
-  display_name: "AI Prototype Prompting"
-  short_description: "Generate high-quality AI prototype prompts from product context."
-  default_prompt: "Use AI prototype prompting to turn my product requirement into a structured prototype-generation prompt."
