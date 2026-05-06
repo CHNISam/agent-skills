@@ -1,5 +1,5 @@
 ---
-name: agent-ready-spec-workflow
+name: product-to-spec
 description: This skill should be used when the user wants to turn product ideas, PRDs, roadmap items, user stories, or prototype plans into AI-native product iteration workflow artifacts and Agent-Ready Specs for Cursor, Claude Code, Codex, v0, or similar coding agents. It covers roadmap granularity, prototype-first delivery, scope boundaries, API/data contracts, state machines, BDD acceptance criteria, and implementation handoff constraints.
 ---
 
