@@ -1,0 +1,7 @@
+interface:
+  display_name: "云效需求导入"
+  short_description: "从需求截图或清单生成云效导入表"
+  default_prompt: "Use $yunxiao-requirement-import to turn release notes or screenshots into a Yunxiao product requirement import spreadsheet."
+
+policy:
+  allow_implicit_invocation: true
