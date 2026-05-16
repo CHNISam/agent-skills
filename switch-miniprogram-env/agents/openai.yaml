@@ -1,0 +1,4 @@
+interface:
+  display_name: "Switch Miniprogram Env"
+  short_description: "Switch WeChat miniprogram CloudBase environments"
+  default_prompt: "Use $switch-miniprogram-env to switch this WeChat miniprogram to the target CloudBase environment."
