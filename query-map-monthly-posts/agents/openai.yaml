@@ -1,0 +1,4 @@
+interface:
+  display_name: "查询地图月度发帖"
+  short_description: "安全查询生产环境指定用户的月度温暖拍与设施拍数量"
+  default_prompt: "Use $query-map-monthly-posts to query specified users monthly warm and facility post counts."
