@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initialize Repository Governance"
+  short_description: "Create tailored AGENTS.md rules for a repository"
+  default_prompt: "Use $init-repository-governance to inspect this repository and create or improve its AGENTS.md guidance."
