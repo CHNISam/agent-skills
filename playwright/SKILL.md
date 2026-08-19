@@ -31,6 +31,12 @@ playwright-cli --help
 
 Once `npx` is present, proceed with the wrapper script. A global install of `playwright-cli` is optional.
 
+## Browser selection (required)
+
+Prefer an already installed system Chrome or Chromium for local browser automation. Before running `playwright install` or recommending a browser download, locate a system executable (for example `chrome.exe` or `chromium.exe`) and pass it as Playwright's `executablePath` or launch through the browser-control skill.
+
+Do not download Playwright-managed browsers merely because the default Playwright cache is empty. Only offer `playwright install` after confirming that no usable system Chrome/Chromium executable or connected Chrome session is available, and state that download clearly.
+
 ## Skill path (set once)
 
 ```bash
