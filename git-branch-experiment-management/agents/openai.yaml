@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git 分支实验管理"
+  short_description: "遵循 Git 分支、实验与集成管理规范，处理分支隔离、实验契约与归档决策"
+  default_prompt: "按 Git 分支、实验与集成管理规范执行分支创建、合并、归档与清理操作"
