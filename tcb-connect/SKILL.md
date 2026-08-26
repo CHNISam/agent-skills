@@ -60,16 +60,18 @@ npx mcporter call cloudbase.auth action=status --output json
 ### SQL 查询（只读）
 
 ```bash
-npx mcporter call cloudbase.querySqlDatabase action=runQuery "sql=SELECT * FROM map_poi LIMIT 5" --output json
+npx mcporter call cloudbase.queryMysqlDatabase action=runQuery "sql=SELECT * FROM map_poi LIMIT 5" --output json
 ```
 
-> ⚠️ action 必须是 `runQuery`（文档有时写 `getEnvInfo` 等旧名称，是错的）
+> ⚠️ 工具名是 `queryMysqlDatabase`（`querySqlDatabase` 不存在，会报 Tool not found）。
 
 ### SQL 写入 / 删除
 
 ```bash
-npx mcporter call cloudbase.manageSqlDatabase action=runStatement "sql=DELETE FROM map_poi WHERE ..." --output json
+npx mcporter call cloudbase.manageMysqlDatabase action=runStatement "sql=DELETE FROM map_poi WHERE ..." --output json
 ```
+
+> ⚠️ 工具名是 `manageMysqlDatabase`（旧文档写的 `manageSqlDatabase` 不存在）。mcporter 对不存在的工具返回 JSON 错误体但**退出码为 0**，脚本里必须检查响应体的 `success`/`rowsAffected` 字段，不能只看是否抛异常。写后务必 COUNT 验证。
 
 ### SQL 很长时（如 IN 几百个值）：写文件再传
 
