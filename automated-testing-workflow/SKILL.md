@@ -7,6 +7,28 @@ description: Enforce an incremental, requirements-first automated testing workfl
 
 Use tests to define correct behavior, guide development, and prevent regressions. Do not treat them only as final acceptance checks.
 
+This skill owns the **judgment** — which scope for which risk, how to diagnose a failure,
+what you may and may not change. The deterministic gate (run format → lint → typecheck →
+test in order, fail-fast, report exactly what ran) is executed by
+`scripts/verify.sh` / `scripts/verify.ps1`, driven by a repo-local `verify.config` or
+auto-detection. Run `scripts/verify.sh --list` to see the resolved commands.
+
+## Match Scope to Risk
+
+Do not run every expensive suite for a one-line change; do not ship a broad change on a
+targeted subset. Pick by the change, not by habit:
+
+| Change | Verification scope |
+|---|---|
+| Small / localized (isolated fix, comment, rename) | The directly relevant tests. |
+| Normal feature or behavior change | The repository's canonical verification (`verify.*` full run). |
+| Bug fix | Reproduce the failure where practical → add or identify regression coverage → fix → prove the regression is gone. |
+| Large / high-risk / refactor | Broad-to-full relevant verification; pair with the `large-change-review` skill. |
+| UI / game presentation | Automated checks **plus** real visual evidence where pixels matter (Observe → Modify → Observe). |
+
+Prefer one canonical repository verification command when the repo can offer it. Never
+declare completion from code inspection alone.
+
 ## Select Test Scope
 
 Consider each applicable layer:
