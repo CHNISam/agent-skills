@@ -147,9 +147,25 @@ python -m unittest discover -s tests -p "test_*.py" -v
 GitHub Actions runs the same two commands. `scripts/validate_repo.py` rejects malformed or
 duplicate Skill metadata, missing or duplicated profile entries, retired skills that
 reappeared at the root, profiles that reference skills that do not exist, and a
-`discovery_graph` whose `write_root` names don't match `targets`. `scripts/audit_catalog.py`
-is a separate, machine-level check: it computes each agent's actual effective skill catalog
-from the live discovery graph and this machine's real directories, and reports any skill
-name found at a location the graph doesn't predict.
+`discovery_graph` whose `write_root` names don't match `targets`.
+
+`scripts/audit_catalog.py` is a separate, machine-level check, and deliberately not one
+check but two — see `discovery_graph_notes.md`'s "Two separate checks, on purpose" for
+why they must stay apart:
+
+```bash
+# The narrow, scoped gate distribute_skills.py --apply already runs automatically after
+# every SYNC_OK. Binary: only fails on a duplicate among skills THIS repo just applied.
+
+# The full, whole-machine picture -- every agent, every real discovery root, every name:
+python scripts/audit_catalog.py
+```
+
+`audit_catalog.py`'s full audit ends with `FULL_CATALOG_STATUS: CLEAN|REVIEW_REQUIRED|PROBLEM`
+(exit 0/2/1). `CLEAN` is the only status meaning "nothing unresolved anywhere" — a
+third-party duplicate this repo correctly refuses to delete forces `REVIEW_REQUIRED`, never
+`CLEAN`; a duplicate this repo genuinely owns and can fix forces `PROBLEM`. Reporting a
+passing scoped gate as if it were a clean full audit is exactly the failure mode this split
+exists to prevent.
 
 Licenses vary by skill. Each skill's `LICENSE.txt` or `NOTICE` governs; see [`NOTICE`](NOTICE).

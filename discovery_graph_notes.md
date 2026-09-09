@@ -177,3 +177,67 @@ these agents scan, but every skill this repo manages already reaches them throug
 roots above; writing a third copy there would only add duplication, not coverage. This
 repo's distributor never writes to those three, and the machine's existing copies from
 before this change were decommissioned (see `scripts/distribute_skills.py --decommission`).
+
+## Two separate checks, on purpose
+
+`audit_catalog.py` deliberately does not have one "is it done" answer. It has two:
+
+- **`managed_gate()`** — what `distribute_skills.py --apply` calls right after `SYNC_OK`.
+  Binary, scoped to exactly the skills that run just placed. It answers "did this apply
+  create an unintended duplicate among skills this repo manages" and nothing about the
+  rest of the machine. A personal skill pack's own internal duplicate, or a third-party
+  plugin's, never fails this gate — it never looked at them.
+- **`full_audit()`** — what `python scripts/audit_catalog.py` (no arguments) runs. Walks
+  every discovery root for every agent and classifies every duplicate name found,
+  anywhere, into `EXPECTED` / `REVIEW_REQUIRED` / `PROBLEM`. Its own status
+  (`FULL_CATALOG_STATUS: CLEAN|REVIEW_REQUIRED|PROBLEM`) is a three-way result, and only
+  `CLEAN` — exit code 0 — means "nothing unresolved anywhere". `REVIEW_REQUIRED` has its
+  own exit code (2), distinct from `PROBLEM`'s (1), specifically so a script or an agent
+  cannot collapse "not a hard failure" into "success". Conflating these two checks — or
+  reporting a scoped `managed_gate()` pass as if it were a clean `full_audit()` — is
+  exactly the escaped-regression pattern this file documents above; keep them separate.
+
+`REVIEW_REQUIRED` exists for duplicates this repo has no authority or confident basis to
+resolve on its own:
+
+- a name agent-skills has never shipped (current or retired) — third-party content, never
+  auto-deleted, no matter how confidently it looks like a duplicate;
+- a name agent-skills recognizes, but the content genuinely differs across paths this repo
+  does not uniformly control — which version is authoritative is a decision, not something
+  to guess;
+- a name — retired or current — found nested inside something deeper than this repo's own
+  distributor ever writes (`<root>/<name>/SKILL.md`, always exactly one level). Some of
+  this repo's own now-retired skills were themselves verbatim copies of an upstream source
+  (see `NOTICE`), so a raw install of that same upstream plugin can be byte-identical to
+  what this repo once shipped and retired, without being this repo's placement — or this
+  repo's to delete — at all. Confirmed on this machine: a separately-installed, unmodified
+  `obra/superpowers` plugin sits at `.claude/skills/superpowers/<name>/SKILL.md` for
+  fourteen names, two of which (`using-superpowers`, `verification-before-completion`) are
+  also this repo's own retired names. `PROBLEM`'s "remove it" fix only ever applies to a
+  *direct* placement — one this repo's own tooling could actually have made.
+
+`REVIEW_REQUIRED` is not a permanent resting state for a name this repo *does* control: nine
+non-core skills found with genuinely diverged content between `.claude/skills` and
+`.agents/skills` (independent installs at different times, before this repo's own state
+tracking existed) were resolved by syncing both copies to the current canonical repo
+content — an objective, reproducible reference point, not a guess about which locally-
+drifted version was more "intended". They now register as `EXPECTED` like any other
+Claude+Agents overlap. What remains under `REVIEW_REQUIRED` on this machine is exactly the
+third-party content above (the `blender-agent-studio` duplicate, `blender-production-suite`,
+`bencium-controlled-ux-designer`'s nested plugin layout, the `superpowers` plugin pack, and
+Codex's own bundled `openai-docs`/`skill-creator` under `.system/`) plus `reaper-music-
+production`, none of which this repo has ever shipped or has any basis to touch.
+
+## Cursor's dedup behavior remains genuinely unverified
+
+Checked for a real introspection path on this machine: the `cursor` binary
+(`D:\cursor\resources\app\bin\cursor.cmd`) is the GUI editor launcher only — its `--help`
+exposes no skill-listing or debug command comparable to Codex's `codex debug prompt-input`.
+A `cursor-agent` entry exists on `PATH` but resolves to nothing (`command not found`) — a
+standalone Cursor CLI product is not installed here. Unlike Codex, verified against real
+runtime output, Cursor's dedup precedence is asserted only from its own docs' silence on the
+topic, and stays classified that way (`"dedup": "undocumented by Cursor; verify empirically"`
+in `skill-profiles.json`) rather than being claimed as verified. Confirming it requires
+either a human opening Cursor's own Skills panel (Customize → Skills) and reporting what it
+shows for a name known to exist at both `.claude/skills` and `.agents/skills`, or a future
+session with access to a Cursor CLI product this one does not have.

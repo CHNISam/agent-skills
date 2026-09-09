@@ -353,18 +353,25 @@ def main(argv: list[str] | None = None) -> int:
 
         discovery_graph = manifest.get("discovery_graph", {})
         if discovery_graph:
+            # This is the narrow, scoped completion gate ONLY -- it says nothing about
+            # the rest of the machine's catalog. It is deliberately not the same check
+            # as `python scripts/audit_catalog.py` (no args), which walks every agent's
+            # full discovery graph and can report REVIEW_REQUIRED for content this gate
+            # never looks at. A pass here means "this apply did not create an unintended
+            # duplicate among the skills it just placed" -- nothing more.
             retired = set(manifest.get("retired_skills", []))
-            audit_lines, audit_ok = audit_catalog.audit_names(
-                discovery_graph, args.home.resolve(), retired, only_names=set(selected)
+            audit_lines, audit_ok = audit_catalog.managed_gate(
+                discovery_graph, args.home.resolve(), retired, applied_names=set(selected)
             )
             for line in audit_lines:
                 print(line)
             if not audit_ok:
                 print(
                     "CATALOG_ERROR: files were copied correctly (SYNC_OK above) but the "
-                    "effective-catalog audit found an unintended duplicate or retired "
+                    "managed-distribution gate found an unintended duplicate or retired "
                     "skill among the skills just applied -- distribution is NOT complete. "
-                    "Run scripts/audit_catalog.py for the full picture and "
+                    "This is a scoped check; run scripts/audit_catalog.py for the full, "
+                    "whole-machine picture across every agent, and "
                     "--decommission the stale root before re-running.",
                     file=sys.stderr,
                 )
