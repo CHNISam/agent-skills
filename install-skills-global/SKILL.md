@@ -10,7 +10,7 @@ generated copies, not authoring sources.
 
 ## Workflow
 
-1. Locate the worktree containing `harness-profile.json` and
+1. Locate the worktree containing `skill-profiles.json` and
    `scripts/distribute_skills.py`. Pull only with a safe fast-forward after checking the
    branch and working tree; preserve local changes.
 2. Detect installed agents/config directories. Do not create targets the user did not
@@ -31,7 +31,7 @@ generated copies, not authoring sources.
    ```
 
    Later refreshes normally use `--apply --prune`; pruning is restricted to directories
-   recorded in `.harness-managed.json`.
+   recorded in `.skills-managed.json`.
 6. Restart or reload agents that do not discover changed skills live.
 
 Dry-run is the default. Do not replace an unmanaged collision by hand, copy with a broad

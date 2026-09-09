@@ -17,7 +17,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-STATE_FILE = ".harness-managed.json"
+STATE_FILE = ".skills-managed.json"
+# Installs made before the state file was renamed. Still read so an existing
+# installation keeps its ownership records instead of colliding with itself.
+LEGACY_STATE_FILES = (".harness-managed.json",)
 IGNORED_NAMES = {".git", "__pycache__", ".DS_Store"}
 
 
@@ -30,13 +33,13 @@ def repo_root() -> Path:
 
 
 def load_manifest(source: Path) -> dict:
-    path = source / "harness-profile.json"
+    path = source / "skill-profiles.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise DistributionError(f"cannot read {path}: {exc}") from exc
     if data.get("schema_version") != 1:
-        raise DistributionError("unsupported harness-profile.json schema_version")
+        raise DistributionError("unsupported skill-profiles.json schema_version")
     return data
 
 
@@ -100,16 +103,25 @@ def ignore_copy(_directory: str, names: list[str]) -> set[str]:
     return {name for name in names if name in IGNORED_NAMES or name.endswith(".pyc")}
 
 
+def state_path(target: Path) -> Path | None:
+    """Return the target's ownership file, honouring the pre-rename name."""
+    for name in (STATE_FILE, *LEGACY_STATE_FILES):
+        candidate = target / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def read_state(target: Path) -> dict:
-    state_path = target / STATE_FILE
-    if not state_path.exists():
+    path = state_path(target)
+    if path is None:
         return {"schema_version": 1, "managed_skills": []}
     try:
-        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise DistributionError(f"cannot read state {state_path}: {exc}") from exc
+        raise DistributionError(f"cannot read state {path}: {exc}") from exc
     if state.get("schema_version") != 1:
-        raise DistributionError(f"unsupported state schema in {state_path}")
+        raise DistributionError(f"unsupported state schema in {path}")
     return state
 
 
@@ -123,6 +135,10 @@ def write_state(target: Path, source: Path, profile: str, skills: list[str]) -> 
     temporary = target / f"{STATE_FILE}.tmp"
     temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary, target / STATE_FILE)
+    for name in LEGACY_STATE_FILES:
+        legacy = target / name
+        if legacy.exists():
+            legacy.unlink()
 
 
 def resolve_targets(manifest: dict, home: Path, requested: list[str] | None) -> dict[str, Path]:
@@ -172,8 +188,8 @@ def apply_target(
     profile: str,
 ) -> None:
     target.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(prefix=".harness-staging-", dir=target))
-    backup = Path(tempfile.mkdtemp(prefix=".harness-backup-", dir=target))
+    staging = Path(tempfile.mkdtemp(prefix=".skills-staging-", dir=target))
+    backup = Path(tempfile.mkdtemp(prefix=".skills-backup-", dir=target))
     replaced: list[str] = []
     pruned: list[str] = []
     try:

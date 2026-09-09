@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the harness's structural and routing invariants."""
+"""Validate this repository's own structural and routing invariants."""
 
 from __future__ import annotations
 
@@ -33,11 +33,11 @@ def frontmatter(text: str) -> dict[str, str]:
 
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
-    manifest_path = root / "harness-profile.json"
+    manifest_path = root / "skill-profiles.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as exc:
-        return [f"cannot read harness-profile.json: {exc}"]
+        return [f"cannot read skill-profiles.json: {exc}"]
 
     skills: dict[str, Path] = {}
     for child in sorted(root.iterdir()):
@@ -65,7 +65,7 @@ def validate(root: Path) -> list[str]:
 
     profiles = manifest.get("profiles", {})
     if not isinstance(profiles, dict) or "core" not in profiles:
-        errors.append("harness-profile.json: profiles.core is required")
+        errors.append("skill-profiles.json: profiles.core is required")
     for profile, names in profiles.items():
         if names == "*":
             continue
@@ -80,20 +80,27 @@ def validate(root: Path) -> list[str]:
             errors.append(f"profile {profile!r} references retired skills: {bad}")
 
     required_files = [
-        "HARNESS.md",
         "README.md",
+        "NOTICE",
+        "skill-profiles.json",
         "scripts/distribute_skills.py",
-        "scripts/validate_harness.py",
-        ".github/workflows/harness-ci.yml",
+        "scripts/validate_repo.py",
+        ".github/workflows/ci.yml",
     ]
     for rel in required_files:
         if not (root / rel).is_file():
-            errors.append(f"missing required harness file: {rel}")
+            errors.append(f"missing required repository file: {rel}")
 
-    harness = (root / "HARNESS.md").read_text(encoding="utf-8") if (root / "HARNESS.md").exists() else ""
-    for name in retired:
-        if re.search(rf"`{re.escape(name)}`.*\b(core|on-demand)\b", harness, re.I):
-            errors.append(f"HARNESS.md routes retired skill {name!r} as active")
+    readme = (root / "README.md").read_text(encoding="utf-8") if (root / "README.md").exists() else ""
+    for name in sorted(retired):
+        if re.search(rf"`{re.escape(name)}`.*\b(core|on-demand)\b", readme, re.I):
+            errors.append(f"README.md routes retired skill {name!r} as active")
+
+    core = profiles.get("core")
+    if isinstance(core, list):
+        missing_docs = sorted(name for name in core if f"`{name}`" not in readme)
+        if missing_docs:
+            errors.append(f"README.md does not document core skills: {missing_docs}")
     return errors
 
 
@@ -101,9 +108,9 @@ def main() -> int:
     errors = validate(root_from_script())
     if errors:
         for error in errors:
-            print(f"HARNESS_ERROR: {error}", file=sys.stderr)
+            print(f"REPO_ERROR: {error}", file=sys.stderr)
         return 1
-    print("HARNESS_VALID")
+    print("REPO_VALID")
     return 0
 
 

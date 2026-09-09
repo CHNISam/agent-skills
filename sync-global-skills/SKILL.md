@@ -17,7 +17,7 @@ from `~/.agents/skills` or another generated target.
 3. Run:
 
    ```bash
-   python scripts/validate_harness.py
+   python scripts/validate_repo.py
    python -m unittest discover -s tests -p "test_*.py" -v
    ```
 

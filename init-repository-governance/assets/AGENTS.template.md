@@ -35,7 +35,7 @@ silently replace them.
 - Broad/high-risk changes use `large-change-review` and one `review-pack.md`. Independent
   review is optional unless project policy says otherwise; fresh verification is required.
 - Explicit dissatisfaction, escaped regressions, and repeated failures use
-  `harness-self-improvement`: prefer test/check/CI, then a project rule, and promote to a
+  `preventing-repeat-failures`: prefer test/check/CI, then a project rule, and promote to a
   shared Skill only when genuinely cross-project.
 
 ## Project invariants

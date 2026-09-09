@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print a read-only repository inventory for AGENTS.md authoring and harness wiring."""
+"""Print a read-only repository inventory for AGENTS.md authoring and gate wiring."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ INTERESTING_FILES = (
     "CLAUDE.md",
     "README.md",
     "CONTRIBUTING.md",
-    "HARNESS.md",
+    "justfile",
     "verify.config",
     "package.json",
     "pnpm-workspace.yaml",

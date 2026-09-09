@@ -1,12 +1,25 @@
 ---
 name: init-repository-governance
-description: Inspect a software repository and create or improve concise, evidence-based agent guidance plus mechanical verification wiring. Use for repository /init, AGENTS.md or CLAUDE.md adoption, new-project harness setup, or auditing project instructions for stale, duplicated, missing, or unenforced rules.
+description: Inspect a software repository and create or improve concise, evidence-based agent guidance plus mechanical verification wiring. Use for repository /init, AGENTS.md or CLAUDE.md adoption, helping a project set up its own agent harness, or auditing project instructions for stale, duplicated, missing, or unenforced rules.
 ---
 
 # Initialize Repository Governance
 
-Build a thin adapter from the shared harness to the repository's real commands and
-invariants. Do not install a framework or copy the global harness into every project.
+Help a repository write **its own** agent guidance from its own real stack, commands, and
+invariants. The project owns the result; this skill is only the tool that produces it.
+
+Do not install a framework, do not copy the skill library into the project, and do not
+transplant the rules of the repository this skill ships from. Nothing here is a doctrine
+the project must adopt — every rule that survives must be traceable to evidence in the
+target repository or to an explicit decision by its owner.
+
+For a sense of what a good, fully project-owned result looks like, read a mature real
+repository's own file — for example [`openai/codex`'s `AGENTS.md`][codex-agents], which is
+almost entirely specific to that codebase: its crate naming, its `just` commands, its
+snapshot-test and API-versioning rules. Borrow the *shape* and specificity; do not copy its
+content.
+
+[codex-agents]: https://github.com/openai/codex/blob/main/AGENTS.md
 
 ## Inspect first
 
@@ -33,7 +46,10 @@ Start from [assets/AGENTS.template.md](assets/AGENTS.template.md) for a new file
 placeholders and irrelevant sections. Merge accurate existing project rules rather than
 overwriting them wholesale.
 
-## Wire the harness
+## Wire the project's own gates
+
+Each item below is a candidate. Keep it only when the repository has, or is choosing to
+add, a real mechanism behind it; drop it rather than writing an unenforced rule.
 
 1. **Plain-language task contract:** tell agents to infer Goal, Constraints, and Done when
    internally. Repository discovery answers repository facts. Material product or risk
@@ -49,12 +65,14 @@ overwriting them wholesale.
 5. **Review:** route broad/high-risk diffs to `large-change-review` and its one
    `review-pack.md`; independent review is optional unless repository policy requires it.
 6. **Self-improvement:** route rejected outcomes and repeated failures to
-   `harness-self-improvement`, keeping project-specific protections in the project.
+   `preventing-repeat-failures`, keeping project-specific protections in the project.
 7. **Source of truth:** state what the repository owns and what external product/roadmap
    system owns, without duplicating live backlog state.
 
-Reference only installed Skills. Domain Skills are available on demand, never mandatory
-merely because the repository uses that language or engine.
+Reference only installed Skills, and only where a pointer beats restating the rule.
+Domain Skills are available on demand, never mandatory merely because the repository uses
+that language or engine. If a skill is absent on a contributor's machine, the project's own
+file must still stand on its own.
 
 ## Git and authority
 

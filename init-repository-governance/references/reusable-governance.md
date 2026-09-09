@@ -56,5 +56,5 @@ do not prove underlying logic. Use both where the contract crosses both layers.
 
 After an escaped failure, ask why existing protection missed it. Keep a one-off correction
 in the task, a product-specific guard in the project, and only a repeated/generalizable
-mechanism in the shared harness. Prefer regression test → deterministic check → CI →
+mechanism in the shared skill library. Prefer regression test → deterministic check → CI →
 project rule → Skill → global prose.

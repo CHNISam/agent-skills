@@ -1,9 +1,9 @@
 ---
-name: harness-self-improvement
-description: Turn explicit user dissatisfaction, escaped regressions, repeated agent failures, or review findings into the smallest durable protection at the correct scope. Use after correcting the current outcome when the failure reveals a missing test, deterministic guard, project rule, shared skill, or harness mechanism.
+name: preventing-repeat-failures
+description: Turn explicit user dissatisfaction, escaped regressions, repeated agent failures, or review findings into the smallest durable protection at the correct scope. Use after correcting the current outcome when the failure reveals a missing test, deterministic guard, project rule, or shared skill.
 ---
 
-# Harness Self-Improvement
+# Preventing Repeat Failures
 
 Improve the system without converting every complaint into global policy.
 
@@ -16,7 +16,7 @@ Record only what changes future decisions:
 - why existing tests, checks, instructions, or tools did not prevent it;
 - whether this is a first occurrence, a regression, or a repeated pattern.
 
-Fix the current task first. Do not use harness work to avoid delivering the requested
+Fix the current task first. Do not use process work to avoid delivering the requested
 outcome.
 
 ## 2. Choose the ownership scope
@@ -25,7 +25,7 @@ outcome.
 |---|---|---|
 | Task | Wording/context was missing only in this request | Improve the current task contract or handoff; no permanent global rule. |
 | Project | Depends on one product, architecture, command, data model, or repository convention | Project test/script/CI/AGENTS or owned technical doc. |
-| Shared harness | Repeated or clearly generalizable failure across projects/agents | This skill repository, with validation and explicit authority. |
+| Shared skills | Repeated or clearly generalizable failure across projects/agents | The shared skill repository, with its validation and explicit authority. |
 
 A strong user preference is not automatically universal. Promote to shared scope only
 when the rule is cross-project, the same failure repeats, or a general mechanism can
@@ -52,9 +52,9 @@ supersedes it; avoid parallel wrappers.
 
 Within an authorized implementation task, add project-local regression protection that
 is necessary to make that task complete. Do not silently edit global configuration,
-external repositories, or shared skills. For a shared-harness change, obtain explicit
-authority, use an isolated branch, run the harness validation, and provide a whole-diff
-walkthrough proportional to risk.
+external repositories, or shared skills. To change a shared skill, obtain explicit
+authority, use an isolated branch, run that repository's own validation, and provide a
+whole-diff walkthrough proportional to risk.
 
 ## 5. Prove the improvement
 

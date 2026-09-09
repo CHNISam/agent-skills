@@ -37,7 +37,7 @@ class DistributionTests(unittest.TestCase):
         )
 
     def write_manifest(self, profiles):
-        (self.source / "harness-profile.json").write_text(
+        (self.source / "skill-profiles.json").write_text(
             json.dumps(
                 {
                     "schema_version": 1,
@@ -79,6 +79,26 @@ class DistributionTests(unittest.TestCase):
         installed = (target / "alpha" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("updated", installed)
         self.assertEqual((unrelated / "note.txt").read_text(encoding="utf-8"), "keep")
+        state = json.loads((target / dist.STATE_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(state["managed_skills"], ["alpha"])
+
+    def test_legacy_state_file_keeps_ownership_and_is_migrated(self):
+        target = self.home / ".codex" / "skills"
+        managed = target / "alpha"
+        managed.mkdir(parents=True)
+        (managed / "SKILL.md").write_text("stale", encoding="utf-8")
+        (target / ".harness-managed.json").write_text(
+            json.dumps(
+                {"schema_version": 1, "profile": "core", "managed_skills": ["alpha"]}
+            ),
+            encoding="utf-8",
+        )
+
+        # An install recorded under the old state-file name is still ours, so this
+        # must refresh it rather than reporting an unmanaged collision.
+        self.assertEqual(self.run_dist("--profile", "core", "--apply"), 0)
+        self.assertIn("one", (managed / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertFalse((target / ".harness-managed.json").exists())
         state = json.loads((target / dist.STATE_FILE).read_text(encoding="utf-8"))
         self.assertEqual(state["managed_skills"], ["alpha"])
 

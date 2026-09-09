@@ -16,7 +16,7 @@ Known upstreams
   executing-plans, finishing-a-development-branch, receiving-code-review,
   requesting-code-review, subagent-driven-development, systematic-debugging,
   test-driven-development, using-git-worktrees, writing-plans, writing-skills. The three
-  named core-adjacent skills were rewritten for this harness; the remaining listed skills
+  named core-adjacent skills were rewritten in this repository; the remaining listed skills
   retain more of the upstream workflow and are not in the default core profile.
 
 - OpenAI Agents SDK repo skills (openai/openai-agents-python, .agents/skills, MIT):

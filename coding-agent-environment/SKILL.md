@@ -11,7 +11,7 @@ Keep the baseline small and observable. Each installed agent should be able to:
 2. search code with `rg`/`fd` or an equivalent built-in index;
 3. obtain diagnostics through LSP or the repository's CLI linters/type checkers;
 4. query current official documentation when repository evidence is insufficient;
-5. discover the same lightweight harness core.
+5. discover the same shared core skills.
 
 Do not add a filesystem MCP when native file tools already cover the need. Add business
 connectors such as GitHub, databases, chat, and cloud providers only for tasks that use
@@ -28,7 +28,7 @@ python scripts/distribute_skills.py --profile core --target all --apply --adopt-
 ```
 
 Subsequent updates use `--apply --prune`. The distributor manages only entries recorded
-in each target's `.harness-managed.json` and preserves unrelated personal skills.
+in each target's `.skills-managed.json` and preserves unrelated personal skills.
 
 ## Audit
 
