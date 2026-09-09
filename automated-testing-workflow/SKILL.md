@@ -8,7 +8,10 @@ description: Design and enforce requirements-first automated verification for fe
 Automated verification is the completion gate, not an optional final check. Test the
 requirement, not the implementation.
 
-The repository's canonical command is authoritative. When it has none, configure
+The repository's own testing policy is authoritative wherever it exists: its canonical
+command, required layers, coverage rules, CI and merge gates, and review requirements.
+Follow what the repository settles; this skill supplies judgment only for what it leaves
+open. When it has no canonical command, configure
 `scripts/verify.sh` or `scripts/verify.ps1` with a repo-local `verify.config`; the scripts
 execute format → lint → typecheck/build → test in order, fail fast, and report exactly
 what did and did not run.

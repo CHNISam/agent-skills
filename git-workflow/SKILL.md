@@ -52,7 +52,10 @@ per writer), use the `git-branch-experiment-management` skill.
 | `feat!` or `BREAKING CHANGE:` | MAJOR | `feat(api)!: remove v1 endpoints` |
 | `chore`, `docs`, `ci`, `refactor`, `test`, `perf` | none | `ci: add Node 24 to matrix` |
 
-Enforce mechanically with **commitlint** — see [references/hooks.md](references/hooks.md).
+If the repository already has a commit convention, changelog format, or release
+tooling that reads commit messages, follow it. Introduce Conventional Commits where
+nothing is established, or when the user asks to change the convention — then enforce it
+mechanically with **commitlint**, see [references/hooks.md](references/hooks.md).
 
 ## Code Review Checklist
 
