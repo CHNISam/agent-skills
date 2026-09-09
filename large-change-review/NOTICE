@@ -1,0 +1,32 @@
+large-change-review — provenance
+================================
+
+Adapted from the OpenAI Agents SDK repository skills:
+
+  Upstream:  https://github.com/openai/openai-agents-python
+  Path:      .agents/skills/implementation-final-review/
+             .agents/skills/implementation-kickoff/  (task-boundary / merge-base opening)
+  Commit:    36b38b8aec941aae4d4508d7b47a90b1babaac40 (path last touched 2026-09-05)
+  Retrieved: 2026-09-09
+  License:   MIT (openai/openai-agents-python LICENSE)
+
+What was adopted
+----------------
+- The three-tier classification by *semantic impact, not line count*:
+  Lightweight / Ordinary / High-risk.
+- The finding discipline: inspect the complete diff against the merge base (not just the
+  latest commit); one independent reviewer in a fresh context with no inherited
+  implementer conversation; reviewer does one read-only pass and returns reviewed scope +
+  concrete findings + residual uncertainty; validate findings, fix as a batch, re-review
+  changed content.
+- The revision-budget idea (a cap, not a target) and the complexity-reset escape hatch.
+
+What was deliberately NOT adopted
+---------------------------------
+- The strict JSON review packet, component ledger, evidence IDs, verification receipts,
+  and the `scripts/review_state.py` / `scripts/review_protocol.py` machinery. This skill
+  keeps review as human-legible judgment, not a serialized protocol.
+- SDK-specific `make` targets and Codex sandbox specifics.
+
+The deterministic verification gate that upstream calls `code-change-verification` lives
+here as `automated-testing-workflow/scripts/verify.sh` / `verify.ps1`.

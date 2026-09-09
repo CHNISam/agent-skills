@@ -1,0 +1,44 @@
+agent-skills — provenance and licensing
+=======================================
+
+This repository bundles Agent Skills from several upstream sources under different
+licenses. Each skill directory's own LICENSE.txt or NOTICE governs that skill. First-party
+skills authored here are released under the MIT License.
+
+Known upstreams
+---------------
+
+- Anthropic Skills (anthropics/skills, MIT) — e.g. docx, pdf, pptx, xlsx, canvas-design,
+  frontend-design, mcp-builder, brand-guidelines, artifacts tooling, skill-creator,
+  slack-gif-creator, webapp-testing. Each carries its upstream LICENSE.txt.
+
+- Superpowers (obra/superpowers) — brainstorming, dispatching-parallel-agents,
+  executing-plans, finishing-a-development-branch, receiving-code-review,
+  requesting-code-review, subagent-driven-development, systematic-debugging,
+  test-driven-development, using-git-worktrees, using-superpowers, verification-before-completion,
+  writing-plans, writing-skills. Adapted to this repo's layout.
+
+- OpenAI Agents SDK repo skills (openai/openai-agents-python, .agents/skills, MIT):
+    * large-change-review/            adapts the tier model and diff-walkthrough discipline
+                                      of `implementation-final-review` (and the
+                                      task-boundary / merge-base opening of
+                                      `implementation-kickoff`). Provenance and the exact
+                                      commit are recorded in large-change-review/NOTICE.
+    * automated-testing-workflow/scripts/verify.sh, verify.ps1
+                                      adapt the sequential fail-fast gate pattern of
+                                      `code-change-verification`. Provenance is in each
+                                      script header.
+
+Design references (concepts only, no code imported)
+--------------------------------------------------
+
+- OpenAI, "Harness Engineering".
+- Anthropic engineering: "Advanced tool use", "Writing tools for agents",
+  "Code execution with MCP".
+- Agent Skills open standard (agentskills/agentskills).
+- VS Code agent workspace-context / context docs; Cursor semantic-search and
+  secure-codebase-indexing posts.
+- GitHub reusable workflows and template repositories documentation.
+
+When adopting further upstream code or workflows, record the source URL, version or commit
+SHA, and license in the adopting skill's directory before merging.
