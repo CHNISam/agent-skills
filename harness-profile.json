@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "core": [
+      "ask-questions-if-underspecified",
+      "automated-testing-workflow",
+      "context-retrieval",
+      "git-branch-experiment-management",
+      "git-workflow",
+      "harness-self-improvement",
+      "init-repository-governance",
+      "large-change-review",
+      "systematic-debugging"
+    ],
+    "authoring": [
+      "ask-questions-if-underspecified",
+      "automated-testing-workflow",
+      "context-retrieval",
+      "git-branch-experiment-management",
+      "git-workflow",
+      "harness-self-improvement",
+      "init-repository-governance",
+      "large-change-review",
+      "systematic-debugging",
+      "skill-creator"
+    ],
+    "all": "*"
+  },
+  "targets": {
+    "agents": ".agents/skills",
+    "codex": ".codex/skills",
+    "claude": ".claude/skills",
+    "cursor": ".cursor/skills",
+    "opencode": ".config/opencode/skills"
+  },
+  "retired_skills": [
+    "5-whys-root-cause-analysis",
+    "ai-native-sop",
+    "pause-and-clarify-riper5",
+    "root-cause-and-verification",
+    "using-superpowers",
+    "verification-before-completion"
+  ]
+}

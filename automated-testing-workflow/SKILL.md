@@ -1,110 +1,86 @@
 ---
 name: automated-testing-workflow
-description: Enforce an incremental, requirements-first automated testing workflow across functional, state, data, API, core E2E, performance, and security tests. Use when implementing features, fixing bugs, changing business rules, refactoring risky logic, adding or modifying tests, investigating test failures, or reporting verification and regression risk.
+description: Design and enforce requirements-first automated verification for features, bug fixes, refactors, business rules, and test changes. Use to choose risk-proportionate test layers, prove regressions, assess whether passing tests are meaningful, diagnose failures, or report completion evidence.
 ---
 
 # Automated Testing Workflow
 
-Use tests to define correct behavior, guide development, and prevent regressions. Do not treat them only as final acceptance checks.
+Automated verification is the completion gate, not an optional final check. Test the
+requirement, not the implementation.
 
-This skill owns the **judgment** — which scope for which risk, how to diagnose a failure,
-what you may and may not change. The deterministic gate (run format → lint → typecheck →
-test in order, fail-fast, report exactly what ran) is executed by
-`scripts/verify.sh` / `scripts/verify.ps1`, driven by a repo-local `verify.config` or
-auto-detection. Run `scripts/verify.sh --list` to see the resolved commands.
+The repository's canonical command is authoritative. When it has none, configure
+`scripts/verify.sh` or `scripts/verify.ps1` with a repo-local `verify.config`; the scripts
+execute format → lint → typecheck/build → test in order, fail fast, and report exactly
+what did and did not run.
 
-## Match Scope to Risk
+## 1. Define observable proof
 
-Do not run every expensive suite for a one-line change; do not ship a broad change on a
-targeted subset. Pick by the change, not by habit:
+Translate the requested outcome into a contract or invariant before choosing tests.
 
-| Change | Verification scope |
+- Good: “after climbing stops, stamina no longer decreases.”
+- Weak: “`stop_climbing()` was called once.”
+
+Choose the cheapest layer that can falsify the contract, then add the smallest amount of
+real-boundary coverage needed:
+
+| Change | Minimum useful evidence |
 |---|---|
-| Small / localized (isolated fix, comment, rename) | The directly relevant tests. |
-| Normal feature or behavior change | The repository's canonical verification (`verify.*` full run). |
-| Bug fix | Reproduce the failure where practical → add or identify regression coverage → fix → prove the regression is gone. |
-| Large / high-risk / refactor | Broad-to-full relevant verification; pair with the `large-change-review` skill. |
-| UI / game presentation | Automated checks **plus** real visual evidence where pixels matter (Observe → Modify → Observe). |
+| Local non-behavioral edit | Focused static check or relevant test. |
+| Feature / behavior change | Focused contract tests plus canonical repository verification. |
+| Bug fix | Reproduce → regression protection → fix → prove the original symptom gone. |
+| Refactor | Existing characterization/contract tests before and after; add missing boundary coverage when risk warrants. |
+| API/data/security/persistence/concurrency | Contract and integration tests for failure, retry, authorization, and compatibility paths as applicable. |
+| UI/game/presentation | Automated logic/scene checks plus runtime or visual evidence where pixels, animation, or input matter. |
 
-Prefer one canonical repository verification command when the repo can offer it. Never
-declare completion from code inspection alone.
+Prefer many fast deterministic tests, enough integration tests for real boundaries, and a
+few high-value E2E flows. Do not turn “important” into “everything must be E2E.”
 
-## Select Test Scope
+## 2. Prove test quality
 
-Consider each applicable layer:
+A green suite is evidence only if it would fail when the required behavior is broken.
+For every added or materially changed test, check:
 
-- Functional tests for user-visible behavior and business capabilities.
-- State tests for transitions, lifecycle rules, persistence, and recovery.
-- Data tests for validation, transformation, consistency, migrations, and boundaries.
-- API tests for contracts, status codes, errors, authorization, and compatibility.
-- Core-flow E2E tests for the few highest-value end-to-end journeys.
-- Performance tests for latency, throughput, resource use, and regression thresholds.
-- Security tests for authentication, authorization, input handling, exposure, and abuse cases.
+- the assertion observes the contract rather than a private call sequence;
+- the test is not permanently true, empty, or only proving a mock;
+- production logic is not copied into the test as its oracle;
+- the failure path and important boundary cases are represented;
+- the test is isolated and deterministic, without order dependence or arbitrary sleeps.
 
-Choose layers based on the change and its risks. Do not add every layer mechanically.
+For a regression, demonstrate the test against the pre-fix behavior when practical and
+safe (red/green, a temporary revert in an isolated worktree, or a controlled mutation).
+If that proof is infeasible, record why and what alternative evidence shows the test is
+capable of failing.
 
-## Add Coverage Incrementally
+Use property-based, contract, snapshot/visual, performance, or mutation testing only when
+the contract benefits from it. Mutation testing is especially useful for critical logic
+or a periodic test-quality audit, not as a default per-commit tax.
 
-Do not require a low-coverage project to become fully covered in one task. Prioritize tests for:
+## 3. Handle failures without gaming the gate
 
-1. The current change.
-2. Explicit business rules.
-3. High-risk logic.
-4. Previously observed bugs.
+A failure means observed behavior and expectation differ. Establish whether the cause is
+product code, the test, the environment, or an authorized requirement change before
+editing.
 
-Keep unrelated coverage expansion out of scope unless it is necessary to test the change safely.
+Proceed with adding coverage, fixing code to a confirmed contract, or refactoring tests
+without semantic change. Obtain confirmation before changing a business expectation.
+Never delete, skip, quarantine, loosen, swallow, or replace a deterministic assertion
+merely to get green.
 
-## Follow the Development Sequence
+An intermittent failure is a flaky signal, not a pass. Record and fix shared state,
+ordering, timing, environment, or observability. A rerun may gather evidence; it does not
+erase the first failure.
 
-Execute work in this order:
+## 4. Completion gate
 
-1. Confirm the relevant rule or expected behavior from requirements, product decisions, existing contracts, or an authorized stakeholder.
-2. Add or update tests that encode the confirmed behavior.
-3. Modify business code.
-4. Run the current tests and related module tests.
-5. Run the full suite when time, environment, and cost permit.
-6. Report results and remaining risks before ending the task.
+Before claiming done:
 
-If behavior is not confirmed and choosing an interpretation would materially change the product, stop and request confirmation before encoding that interpretation in a test.
+1. Run every added or changed test.
+2. Run affected module and contract tests.
+3. Run the repository's canonical verification for normal, broad, or risky behavior
+   changes; if impossible, state the concrete blocker.
+4. Add runtime/visual evidence when automated tests cannot observe the required outcome.
+5. Read the exit code and output; do not infer success from code inspection or an agent's
+   report.
 
-## Diagnose Test Failures
-
-Treat a failure only as evidence that source behavior and test expectation differ. Determine which of these is true before editing:
-
-- The source violates a confirmed requirement: fix the source.
-- The test incorrectly represents a confirmed requirement: obtain human confirmation before changing its business expectation.
-- The requirement changed: confirm the new requirement before updating the test.
-
-Never assume the test is wrong merely because it fails. Never assume the source is wrong without checking the confirmed rule.
-
-## Enforce Modification Authority
-
-Proceed directly with:
-
-- Adding missing test cases.
-- Fixing business code to satisfy confirmed behavior.
-- Refactoring test code without changing its meaning.
-
-Require human confirmation before:
-
-- Changing a test's business expectation.
-- Updating tests because requirements changed.
-
-Do not delete, skip, quarantine, weaken, broaden, or make tests flaky-by-design unless the user explicitly authorizes it for a justified reason. This includes loosening assertions, removing boundary cases, adding skip markers, swallowing errors, and replacing deterministic checks with superficial snapshots.
-
-## Verify and Report
-
-After changes, run:
-
-1. Every test added or modified in the task.
-2. Tests for related modules and affected contracts.
-3. The full test suite when feasible.
-
-Report exactly:
-
-- Commands or test targets run.
-- Pass, fail, and skip outcomes.
-- Tests not run and why.
-- Remaining untested or partially tested risks.
-
-Do not describe an unexecuted test as passing. Do not claim completion while a relevant failure remains unexplained.
+Report exact commands, pass/fail/skip results, what was not run and why, and residual
+untested risk. A relevant unexplained failure means the task is not complete.

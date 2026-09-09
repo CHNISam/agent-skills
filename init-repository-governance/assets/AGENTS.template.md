@@ -1,77 +1,60 @@
 # AGENTS.md
 
-This file applies to this repository and all subdirectories unless a closer `AGENTS.md` or `AGENTS.override.md` provides more specific guidance.
+This file applies to the repository and descendants unless a closer instruction file
+provides more specific guidance.
 
-## Repository context
+## Repository contract
 
-- Purpose: `<one-sentence repository purpose>`
-- Primary areas: `<packages/services/apps and ownership boundaries>`
-- Out of scope: `<adjacent systems or responsibilities that belong elsewhere>`
+- Purpose: `<one sentence>`
+- Owned areas: `<packages/services/apps>`
+- External source-of-truth boundary: `<what this repository must not duplicate>`
 
-Before editing, confirm the repository root, working directory, current branch, Git remote, and which package or service owns the requested change. Preserve unrelated and uncommitted user changes.
+Before editing, confirm repository root, current branch/worktree, remote, and the component
+that owns the requested change. Preserve unrelated and uncommitted work.
 
-## Setup and commands
+## Verified commands
 
-- Install: `<verified command or “see …”>`
-- Develop: `<verified command>`
-- Format/lint: `<verified command>`
-- Type-check/build: `<verified command>`
-- Focused tests: `<verified command and selection syntax>`
-- Full verification: `<verified command>`
+- Setup: `<verified command or documentation link>`
+- Focused check: `<verified command and selection syntax>`
+- Canonical verification: `<one command>`
+- Runtime/visual evidence: `<when and how, or not applicable>`
 
-Use commands documented by manifests, task runners, CI, or repository documentation. Do not invent commands or silently switch package managers.
+Use commands proven by manifests, task runners, CI, or repository docs. Do not invent or
+silently replace them.
 
-## Implementation workflow
+## Working contract
 
-1. Read applicable instructions, relevant source, tests, configuration, and architecture decisions.
-2. Confirm expected behavior and scope. Investigate repository evidence before asking discoverable questions.
-3. For behavior changes and bug fixes, add or update focused tests before or with the implementation.
-4. Make the smallest coherent change and preserve established architecture and public contracts.
-5. Run focused checks, then broader verification in proportion to risk.
-6. Review the diff and report changed files, checks run, omissions, and remaining risks.
+- Infer Goal, Constraints, and Done when from ordinary user language. Inspect repository
+  evidence before asking questions. Ask only when unresolved ambiguity materially changes
+  product behavior, scope, architecture, compatibility, risk, or an irreversible action.
+- Follow `context-retrieval` for least-cost code discovery.
+- Use `automated-testing-workflow` for risk-proportionate verification. Test observable
+  requirements; a passing test must be capable of failing when required behavior breaks.
+- Bug fixes add regression protection where practical. Do not delete, skip, or weaken tests
+  to get green; confirm before changing a business expectation.
+- Broad/high-risk changes use `large-change-review` and one `review-pack.md`. Independent
+  review is optional unless project policy says otherwise; fresh verification is required.
+- Explicit dissatisfaction, escaped regressions, and repeated failures use
+  `harness-self-improvement`: prefer test/check/CI, then a project rule, and promote to a
+  shared Skill only when genuinely cross-project.
 
-- Retrieval: follow the `context-retrieval` ladder (known context → LSP → grep/glob → semantic/index → targeted reads → docs → MCP). Aim for minimum relevant context.
-- Verification: `automated-testing-workflow` owns scope-by-risk judgment; `<canonical verify command>` (or `automated-testing-workflow/scripts/verify.*` with a repo `verify.config`) runs the deterministic gate.
-- Review: `requesting-code-review` for a normal small change; `large-change-review` for broad refactors or changes touching security, persistence, concurrency, or released compatibility.
+## Project invariants
 
-Do not weaken, skip, or delete tests merely to make a run pass. Ask before changing business expectations, acceptance criteria, compatibility, migrations, authentication, authorization, privacy, credential handling, or irreversible infrastructure.
+- `<critical architecture/ownership invariant>`
+- `<data/security/compatibility invariant>`
+- Protected/generated paths: `<paths and required mechanism>`
 
 ## Git and release safety
 
-- Completely read and follow the installed `git-workflow` skill before any Git-policy decision or Git mutation.
-- Every concurrent agent or session that may write must use its own Git worktree and branch, even when planned files do not overlap. Read-only work may share a worktree.
-- Before concurrent work starts, record each writer's absolute worktree path, branch, and file/resource ownership. Integrate only reviewed commits from isolated branches.
-- If another writer already occupies the current worktree or unexplained concurrent changes appear, stop writing and preserve the state until ownership is confirmed; do not format, stage, commit, or deploy overlapping work.
-- Unless established repository policy says otherwise, use controlled GitFlow: `feature/*` → `develop`, validated `release/*` → `main`, and `hotfix/*` → both `main` and `develop`.
-- Keep `main` releasable; do not develop, commit, or push directly on it.
-- Use Conventional Commits: `<type>[scope]: <description>`.
-- Inspect branch, status, tracking relationship, remote, and exact targets before Git mutations.
-- Do not rewrite history, overwrite files, delete branches/tags, or discard changes without explicit authorization.
-- Keep `<production branch>` releasable. Follow `<release/staging/approval documentation>` for deployments and releases.
-- Verify Git, push, tag, release, and deployment claims with fresh output.
+- Follow the installed `git-workflow` plus this repository's established branch model.
+- Concurrent writers use separate worktrees and branches; read-only work may share.
+- Do not rewrite history, discard changes, delete branches/tags, deploy, or modify
+  production without the required explicit authority.
+- Branch model: `<verified repository model>`
+- Release/deployment gate: `<verified policy or documentation>`
 
-## Project-specific invariants
+## Completion
 
-- `<critical architecture or ownership invariant>`
-- `<data/security invariant>`
-- `<compatibility or API invariant>`
-
-## UI and prototypes
-
-<!-- Remove this section for non-UI repositories. -->
-
-- Treat approved prototypes and screenshots as implementation baselines unless redesign is explicitly authorized.
-- Map each supplied page/state to its route or component and validate at matching viewport sizes.
-- Preserve the established visual language and report unavailable assets, fonts, or platform limitations.
-
-## Nested guidance
-
-- `<path>/AGENTS.md`: `<scope and reason>`
-
-Create nested guidance only when a subtree needs genuinely different commands or rules. Keep mechanical formatting checks in tooling or CI and keep this file concise.
-
-## Tool and browser reuse
-
-- Reuse installed tools and browser connectors before proposing downloads. A missing default executable path is not proof that the application is absent.
-- Obtain explicit authorization before downloading browsers, drivers, or large runtime dependencies.
-- For local UI evidence, verify the exact URL, port ownership, page title, and a distinctive page marker before saving screenshots.
+Report changed behavior/files, exact verification and runtime evidence, failures/skips,
+what was not run, and residual risk. Do not claim a test, push, merge, release, deployment,
+or visual result without fresh evidence.
