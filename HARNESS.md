@@ -83,10 +83,12 @@ from code inspection alone. Never weaken or delete tests to make a change pass.
   → verify → integrate. A dedicated **worktree per writer** only when writers are truly
   concurrent, or for a risky isolated experiment — not for every sequential task.
 - **Review:** `requesting-code-review` for a lightweight self-check before an ordinary
-  merge. **`large-change-review`** for broad refactors / high-risk boundaries — it adds a
+  merge. **`large-change-review`** for broad refactors / high-risk boundaries — a
   risk-tiered diff walkthrough (complete diff vs merge-base, control-flow deltas,
-  accidental changes, dead code, missing regression coverage) and an *optional*
-  independent read-only reviewer only when size/risk justifies the token cost.
+  accidental changes, dead code, missing regression coverage) plus an *optional*
+  independent read-only reviewer only when size/risk justifies the token cost. It
+  produces exactly one canonical hand-off artifact, `review-pack.md` — never per-task
+  report filenames.
 - Do **not** default to spawning subagents or reviewers. Primary agent + tests is enough
   for a normal small feature.
 

@@ -11,9 +11,22 @@ independent pass. Adapted from OpenAI's `implementation-final-review` — see `N
 
 Do not bury this logic in `AGENTS.md`. It is a workflow with judgment, so it is a skill.
 
+## Canonical deliverable: `review-pack.md`
+
+Every Ordinary or High-risk run produces **exactly one** artifact — `review-pack.md` —
+written after implementation and verification. It is the standard hand-off: enough for
+another agent to review the change or continue it without re-deriving context. Do not
+invent per-task walkthrough or report filenames, and do not create additional report
+artifacts unless the task explicitly asks for them. Lightweight runs produce nothing.
+
+Put `review-pack.md` outside the shipped deliverable (e.g. a scratch/notes location), not
+in the change itself, unless repository policy says otherwise. Its required contents are
+defined in §3.
+
 ## 1. Pick the tier — by semantic impact, not line count
 
-Classify the **whole** change. Record the tier and a one-line reason in your working notes.
+Classify the **whole** change. Record the tier and a one-line reason as the first line of
+`review-pack.md`.
 
 | Tier | Boundary | Required review |
 |---|---|---|
@@ -39,36 +52,43 @@ goes through `requesting-code-review` or straight to normal verification.
 3. **Released compatibility** — if downstream consumers pin a released version, also diff
    against that tag separately.
 
-## 3. Walkthrough — produce a concise written summary
+## 3. Write `review-pack.md`
 
-Cover, briefly:
+One file, concise, in this order. Reference canonical files (paths, commit ranges, doc
+links) instead of pasting them. Do **not** dump the full diff or full source. Do **not**
+restate skill bodies.
 
-- **What changed** — the components touched and the shape of the change.
-- **Why** — tie each cluster of edits back to the acceptance criteria.
-- **Architecture / control-flow deltas** — new or moved boundaries, changed call graphs,
-  changed data ownership, new async/lifecycle behavior.
-- **Migration / compatibility impact** — schema, API, config, on-disk format, public
-  exports. What a consumer must do to adopt.
-- **Tests & evidence** — which suites ran, results, what visual/manual evidence exists.
-- **Residual risk** — what is still uncertain or deferred.
+1. **Tier** — Lightweight / Ordinary / High-risk, with a one-line reason.
+2. **Task & acceptance criteria** — what this change had to do and how "done" was defined.
+3. **Baseline** — target branch, `git merge-base` SHA, and the reviewed range
+   (`<merge-base>...HEAD`); note if released-tag compatibility was also checked.
+4. **Change summary** — a short paragraph: the shape of the change and why.
+5. **Architecture / control-flow changes** — new or moved boundaries, changed call graphs,
+   changed data ownership, new async/lifecycle behavior. "None" is a valid answer.
+6. **Important changed files & ownership** — the handful that matter, one line each on
+   what each now owns. Not an exhaustive list; point at the diff for the rest.
+7. **Full-diff walkthrough** — walk the *complete* diff (committed + staged + unstaged +
+   task-owned untracked), grouped by area, each group tied back to the acceptance
+   criteria. This is a narrated map of the diff, not the diff itself.
+8. **Verification** — the exact commands run and their **actual** results (pass/fail/skip
+   counts, key output lines), plus what was not run and why.
+9. **Regression / compatibility / migration risks** — schema, API, config, on-disk
+   format, public exports; what a consumer must do to adopt.
+10. **Unresolved findings / deferred work** — open items, known-but-accepted risks,
+    follow-ups, and the revision-cycle count if a reviewer loop ran.
 
-Then scan the diff specifically for:
-
-- accidental **unrelated** changes (stray formatting, debug prints, unrelated files)
-- **duplicated** implementation of something that already exists in the repo
-- **architecture boundary violations** (a layer reaching past its contract)
-- **stale / dead code** left behind by the change
-- **missing regression coverage** for the behavior that changed
-- **unnecessary complexity** — conditions piled on conditions; if the same design problem
-  keeps generating findings, reset the design instead of adding more branches
-- **behavior silently removed** — a feature or guard that quietly stopped happening
+While walking the diff (item 7), actively check for and record: accidental **unrelated**
+changes; **duplicated** implementation of something that already exists; **architecture
+boundary violations**; **stale / dead code** left behind; **missing regression coverage**
+for changed behavior; **unnecessary complexity** (if the same design problem keeps
+generating findings, reset the design instead of adding branches); **behavior silently
+removed**. Anything found goes into item 4/5 or item 10.
 
 ## 4. Independent reviewer (only when size/risk justifies the token cost)
 
-Launch **one** agent with no inherited implementer conversation. Give it: the original
-request, a short scope contract, target/base/head refs, the complete diff including
-new-file contents, relevant architecture docs, and the exact focused-check commands + results.
-Do **not** hand it your suspected findings or proposed fixes.
+Launch **one** agent with no inherited implementer conversation. Hand it `review-pack.md`
+plus the reviewed diff and any architecture docs it names. Do **not** hand it your
+suspected findings or proposed fixes.
 
 The reviewer does **one read-only pass** — no edits, no re-running the implementation
 strategy, no recursive delegation, no broad suites (focused non-mutating probes only). It
@@ -77,13 +97,17 @@ uncertainty. A bare "looks good" without inspected scope is not a review.
 
 Then: validate findings against intended behavior, fix them as **one batch**, re-run
 affected checks, and get an independent pass on the changed content if scope or
-cross-cutting assumptions moved. Keep a running count of revision cycles in your notes —
-if it climbs past a handful, get a concrete scope/design decision from the user rather
-than looping.
+cross-cutting assumptions moved. Record the revision-cycle count in `review-pack.md`
+(item 10); if it climbs past a handful, get a concrete scope/design decision from the
+user rather than looping.
 
-## 5. Verify and report
+## 5. Verify, then finalize `review-pack.md`
 
 Run the full applicable verification gate on the **final** content
 (`automated-testing-workflow` + its `scripts/verify.*`). A lighter review tier does not
-waive verification. Report completion only when both review and verification apply to the
-delivered state, and state the tier, what the reviewer inspected, and residual risk.
+waive verification. Then update `review-pack.md` items 8 and 10 with the real results and
+any remaining open items.
+
+Report completion only when review and verification both apply to the delivered state.
+The chat report can be brief — tier, what was inspected, residual risk — and should point
+to `review-pack.md` rather than repeat it.

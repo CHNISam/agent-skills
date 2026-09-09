@@ -20,13 +20,16 @@ uncertainty. Neither is given the other's conclusions or the implementer's suspe
 
 ## Evidence to preserve
 
-Keep, outside the shipped deliverable:
+High-risk work still produces the single canonical `review-pack.md` (SKILL.md §3) — no
+extra report files. Alongside it, keep, outside the shipped deliverable:
 
-- the exact diff reviewed (saved patch + new-file snapshots, or a content fingerprint),
-  so a later comparison can prove what was reviewed;
-- target / base / head commit IDs and the merge-base;
-- the focused-check commands and their output;
-- each reviewer's returned scope and findings, and how each finding was resolved.
+- the exact diff reviewed (a saved patch, or a content fingerprint), so a later
+  comparison can prove what was reviewed;
+- for each reviewer, its returned scope and findings, and how each finding was resolved,
+  appended to `review-pack.md` item 10.
+
+`review-pack.md` already carries the target/base/head IDs and merge-base (item 3) and the
+verification commands and output (item 8); do not duplicate them into separate notes.
 
 If the final content changes after review — behavior, expectations, contracts, or
 dependencies — re-review the changed content and its boundaries. A demonstrably
@@ -40,9 +43,9 @@ not. Committing or staging identical content does not invalidate a review.
 - Re-run every affected check plus the full verification gate on the final content.
 - If repeated findings keep exposing the same design problem, stop adding conditions —
   reset the design and re-review.
-- Carry consumed revision cycles and unresolved root causes forward across any handoff or
-  context compaction. If the budget is exhausted, get a concrete decision from the user
-  before dispatching another round.
+- Keep consumed revision cycles and unresolved root causes in `review-pack.md` (item 10)
+  so they survive any handoff or context compaction. If the budget is exhausted, get a
+  concrete decision from the user before dispatching another round.
 
 ## If an independent reviewer is unavailable
 
