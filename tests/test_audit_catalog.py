@@ -136,6 +136,86 @@ class AuditCatalogTests(unittest.TestCase):
         exit_code = audit.main(["--source", str(source), "--home", str(self.home)])
         self.assertEqual(exit_code, 1)
 
+    def test_byte_identical_copies_at_two_unmanaged_roots_is_still_a_problem(self):
+        # Identical content is only EXPECTED when every contributing root is one
+        # this repo writes (write_root is not None). Two unmanaged roots with
+        # identical content is not a benign synced overlap -- it's exactly the
+        # historical-full-profile-leftover pattern (e.g. two decommissioned
+        # roots each still holding a stale copy) and must fail.
+        write_skill(self.home / ".codex" / "skills", "old-domain-skill", body="same")
+        write_skill(self.home / ".cursor" / "skills", "old-domain-skill", body="same")
+        entry = {
+            "roots": [
+                {"path": ".codex/skills", "write_root": None},
+                {"path": ".cursor/skills", "write_root": None},
+            ],
+            "dedup": "undocumented by Cursor; verify empirically",
+        }
+        lines, ok = audit.audit_agent("cursor", entry, self.home)
+        self.assertFalse(ok, "\n".join(lines))
+        self.assertTrue(any("PROBLEM" in line and "old-domain-skill" in line for line in lines))
+
+    def test_recursive_agent_catches_nested_duplicate_within_one_root(self):
+        # The actual escaped-regression mechanism: Codex, OpenCode, and Cursor all
+        # scan recursively by default (verified against their own source/docs; see
+        # discovery_graph_notes.md). Two sibling "suite" installs inside the SAME
+        # root, each with the same nested skill, must be caught -- a one-level
+        # scanner (recursive=False) cannot see this at all.
+        base = self.home / ".codex" / "skills"
+        write_skill(base / "old-pack", "nested-benchmark", body="v1")
+        write_skill(base / "old-pack-reinstall", "nested-benchmark", body="v1")
+        entry = {
+            "recursive": True,
+            "roots": [{"path": ".codex/skills", "write_root": None}],
+            "dedup": "by-path, not by name: a same-name skill present at two roots (or at two subdirectories within the SAME root) is shown twice, unmerged",
+        }
+        lines, ok = audit.audit_agent("codex", entry, self.home)
+        self.assertFalse(ok, "\n".join(lines))
+        self.assertTrue(any("PROBLEM" in line and "nested-benchmark" in line for line in lines))
+        self.assertEqual(
+            audit.scan_root(self.home, ".codex/skills", recursive=False),
+            {},
+            "a one-level (non-recursive) scan of this same fixture must find nothing -- "
+            "proving the recursive scan is what catches this, not incidental behavior",
+        )
+
+    def test_non_recursive_agent_does_not_see_nested_skills(self):
+        # Claude Code (recursive=False) genuinely does not scan into subdirectories.
+        # A nested SKILL.md two levels down must not appear in its effective catalog.
+        write_skill(self.home / ".claude" / "skills" / "container", "nested-thing")
+        entry = {
+            "recursive": False,
+            "roots": [{"path": ".claude/skills", "write_root": "claude"}],
+            "dedup": "single-root; no cross-tool overlap",
+        }
+        lines, ok = audit.audit_agent("claude-code", entry, self.home)
+        self.assertTrue(ok)
+        self.assertTrue(any("unique skill names visible: 0" in line for line in lines))
+
+    def test_completion_gate_scoped_to_applied_skills_ignores_unrelated_machine_state(self):
+        # distribute_skills.py's post-apply gate must fail on a duplicate among the
+        # skills it just placed, but must not fail the whole run over unrelated,
+        # pre-existing machine content it never touched (e.g. a personal skill pack
+        # with its own internal duplicate) -- that's a separate, pre-existing
+        # condition, not something this apply caused or should be blocked by.
+        write_skill(self.home / ".agents" / "skills", "git-workflow")
+        write_skill(self.home / ".codex" / "skills", "git-workflow")  # stale leftover
+        write_skill(self.home / ".codex" / "skills", "unrelated-a", body="x")
+        write_skill(self.home / ".codex" / "skills", "unrelated-b", body="x")
+        graph = {
+            "codex": {
+                "roots": [
+                    {"path": ".agents/skills", "write_root": "agents"},
+                    {"path": ".codex/skills", "write_root": None},
+                ],
+                "dedup": "by-path, not by name",
+            }
+        }
+        lines, ok = audit.audit_names(graph, self.home, retired=set(), only_names={"git-workflow"})
+        self.assertFalse(ok, "\n".join(lines))
+        self.assertTrue(any("git-workflow" in line for line in lines))
+        self.assertFalse(any("unrelated-a" in line for line in lines))
+
     def test_no_discovery_roots_populated_exits_clean(self):
         source = self.home / "source"
         source.mkdir()

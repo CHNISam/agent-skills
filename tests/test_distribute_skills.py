@@ -36,17 +36,17 @@ class DistributionTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def write_manifest(self, profiles):
+    def write_manifest(self, profiles, discovery_graph=None, targets=None):
+        payload = {
+            "schema_version": 1,
+            "profiles": profiles,
+            "targets": targets or {"codex": ".codex/skills"},
+            "retired_skills": [],
+        }
+        if discovery_graph is not None:
+            payload["discovery_graph"] = discovery_graph
         (self.source / "skill-profiles.json").write_text(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "profiles": profiles,
-                    "targets": {"codex": ".codex/skills"},
-                    "retired_skills": [],
-                }
-            ),
-            encoding="utf-8",
+            json.dumps(payload), encoding="utf-8",
         )
 
     def run_dist(self, *args):
@@ -206,6 +206,50 @@ class DistributionTests(unittest.TestCase):
 
         self.assertEqual(first, ["alpha"])
         self.assertEqual(second, [])
+
+    def test_apply_with_clean_discovery_graph_passes_the_catalog_gate(self):
+        # A completion gate exists: after SYNC_OK, the effective-catalog audit
+        # runs too, and only a clean result returns exit 0.
+        self.write_manifest(
+            {"core": ["alpha"], "all": "*"},
+            discovery_graph={
+                "codex": {
+                    "roots": [{"path": ".codex/skills", "write_root": "codex"}],
+                    "dedup": "single-root",
+                }
+            },
+        )
+        exit_code = self.run_dist("--profile", "core", "--apply")
+        self.assertEqual(exit_code, 0)
+
+    def test_apply_fails_the_catalog_gate_when_a_stale_unmanaged_copy_exists(self):
+        # This is the exact escaped-regression scenario: the copy this run made is
+        # perfectly correct (SYNC_OK), but a second, unmanaged root the same agent
+        # also scans already holds a stale copy of the same skill -- the completion
+        # gate must catch this and fail the run, not just report SYNC_OK.
+        stale_root = self.home / ".legacy" / "skills"
+        stale_root.mkdir(parents=True)
+        (stale_root / "alpha").mkdir()
+        (stale_root / "alpha" / "SKILL.md").write_text(
+            "---\nname: alpha\ndescription: test alpha\n---\n\none\n", encoding="utf-8",
+        )
+        self.write_manifest(
+            {"core": ["alpha"], "all": "*"},
+            discovery_graph={
+                "codex": {
+                    "roots": [
+                        {"path": ".codex/skills", "write_root": "codex"},
+                        {"path": ".legacy/skills", "write_root": None},
+                    ],
+                    "dedup": "by-path, not by name",
+                }
+            },
+        )
+        exit_code = self.run_dist("--profile", "core", "--apply")
+        self.assertEqual(exit_code, 3)
+        # And the files this run placed are still correct -- the gate reports a
+        # problem, it does not roll back a successful, correct copy.
+        self.assertTrue((self.home / ".codex" / "skills" / "alpha").exists())
 
     def test_decommission_on_never_managed_directory_is_a_noop(self):
         target = self.home / ".never" / "touched"

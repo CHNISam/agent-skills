@@ -40,6 +40,35 @@ reported duplicate-skill symptom (e.g. the same skill appearing twice in a selec
 agent that (a) reads a root this repo writes to and (b) does not itself dedupe by name.
 Consequence for this repo: never write to `.codex/skills`; write only `.agents/skills`.
 
+**Recursion.** Source: same repo, `codex-rs/ext/skills/src/loader/host.rs`:
+
+```rust
+pub(crate) fn discovery_mode(&self) -> SkillDiscoveryMode {
+    self.plugin
+        .as_ref()
+        .map_or(SkillDiscoveryMode::Recursive, |plugin| {
+            plugin.discovery_mode
+        })
+}
+```
+
+`DirectChildren` mode (depth-limited to `root/<name>/SKILL.md`) applies only when a root
+belongs to a plugin (`self.plugin` is `Some`). Every root this repo cares about — `.codex/skills`
+and `.agents/skills` — is constructed via `HostSkillRoot::host(...)`, which leaves `plugin: None`,
+so `discovery_mode()` falls through to `Recursive` (`codex-rs/ext/skills/src/loader/discovery.rs`
+walks up to `MAX_SCAN_DEPTH`, collecting **every** `SKILL.md` found, at any depth). This means a
+duplicate does not require two different roots at all: two sibling directories *inside the same
+root* that both contain a nested `SKILL.md` with the same declared `name` are indistinguishable
+from a cross-root duplicate to Codex — both paths are discovered, neither is preferred, both are
+shown. Confirmed on this machine: `~/.codex/skills/blender-agent-studio/` and
+`~/.codex/skills/blender-agent-studio-suite/` are two top-level directories (an old install and a
+later reinstall under a renamed folder) that are **byte-identical**, each containing the same 11
+nested skills (`blender-agent-benchmark/SKILL.md`, `blender-animation-workflow/SKILL.md`, …).
+Codex's recursive walk finds all 22 files and shows all 11 skill names twice. This is real,
+third-party content with zero presence anywhere in `agent-skills`' history (`git log --all -- '*blender*'`
+touches only an unrelated `godot-master/scripts/*_blender.gd` filename) — this repo does not
+manage or remove it; see the Real Machine Verification section of the corresponding task report.
+
 ## OpenCode
 
 Source: `anomalyco/opencode` (formerly `sst/opencode`),
@@ -82,6 +111,11 @@ Claude Code or Codex. What this repo *can* remove is the third, redundant copy: 
 own root is fully covered once `.agents/skills` exists, so this repo does not write to
 `~/.config/opencode/skills`.
 
+**Recursion.** `EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"` and
+`OPENCODE_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"` (both quoted above) are glob patterns
+with `**` — recursive, any depth, same consequence as Codex: a nested duplicate inside one root
+is found and shown the same as a cross-root duplicate.
+
 ## Cursor
 
 Docs: `cursor.com/docs/skills` ("Where skills load"):
@@ -108,6 +142,32 @@ write to `.cursor/skills` (redundant with `.agents/skills`) or `.codex/skills` (
 deprecated root). **Action item for a human:** after distribution, open Cursor's Skills
 panel (Customize → Skills) once and confirm no unexpected duplicate entries — this is the
 one agent in the graph this repo could not verify mechanically.
+
+**Recursion.** Cursor's own docs state it directly: "Cursor walks the skills root recursively
+and picks up any `SKILL.md` it finds." Same consequence as Codex/OpenCode.
+
+## Escaped regression: physical-install correctness was not effective-catalog correctness
+
+An earlier pass of this repo's own distributor validated dry-run convergence, managed-state
+correctness, and rollback/prune safety — and still shipped a machine with real duplicate
+skills in Codex's catalog. Two independent gaps let it through:
+
+1. **State-file narrowing.** `distribute_skills.py`'s `write_state()` always overwrites a
+   target's `managed_skills` with the *current* run's selection. A `--profile all --apply`
+   followed later by `--profile core --apply` (no `--prune`) leaves the earlier run's ~90
+   extra directories physically in place but silently untracked — never prunable again,
+   invisible to every check that only reads the state file.
+2. **One-level scanning.** The original `audit_catalog.py` scanned exactly `root/<name>/SKILL.md`,
+   one level. It could not have caught the `blender-agent-studio` / `blender-agent-studio-suite`
+   pattern above even in principle, because Codex's own real scan is recursive and this
+   tool's model of it was not.
+
+Neither gap was visible from `.skills-managed.json`, from a passing dry-run, or from
+`SYNC_OK`. They were only visible by walking the *real* discovery graph — recursively, where
+each agent's real behavior is recursive — and diffing that against the machine's actual files.
+That is what `scripts/audit_catalog.py` now does, and why a distribution is not complete just
+because it reports success; see the completion-gate section of the task report for how this is
+now enforced mechanically rather than left to inspection.
 
 ## Net result
 

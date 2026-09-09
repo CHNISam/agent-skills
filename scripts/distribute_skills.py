@@ -3,6 +3,14 @@
 
 Dry-run is the default. Only directories recorded in each target's state file are
 ever replaced or pruned without --adopt-existing.
+
+A successful --apply is not the completion criterion. After every apply, this script
+also runs the effective-catalog audit (audit_catalog.py) scoped to the skills it just
+placed, against the real discovery_graph on this machine. A clean file copy that still
+leaves an unintended duplicate visible to some agent (e.g. a stale copy left behind in a
+root this profile no longer manages) prints SYNC_OK for the copy but exits non-zero
+overall -- "distribution correct" means "the effective catalog is correct", not "files
+were copied and the state file says so".
 """
 
 from __future__ import annotations
@@ -16,6 +24,9 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import audit_catalog  # noqa: E402
 
 STATE_FILE = ".skills-managed.json"
 # Installs made before the state file was renamed. Still read so an existing
@@ -339,6 +350,26 @@ def main(argv: list[str] | None = None) -> int:
         for _name, target, _collisions, removals in plans:
             apply_target(target, available, selected, removals, source, args.profile)
         print(f"SYNC_OK: {len(selected)} skills -> {len(plans)} targets")
+
+        discovery_graph = manifest.get("discovery_graph", {})
+        if discovery_graph:
+            retired = set(manifest.get("retired_skills", []))
+            audit_lines, audit_ok = audit_catalog.audit_names(
+                discovery_graph, args.home.resolve(), retired, only_names=set(selected)
+            )
+            for line in audit_lines:
+                print(line)
+            if not audit_ok:
+                print(
+                    "CATALOG_ERROR: files were copied correctly (SYNC_OK above) but the "
+                    "effective-catalog audit found an unintended duplicate or retired "
+                    "skill among the skills just applied -- distribution is NOT complete. "
+                    "Run scripts/audit_catalog.py for the full picture and "
+                    "--decommission the stale root before re-running.",
+                    file=sys.stderr,
+                )
+                return 3
+            print(f"CATALOG_OK: {len(selected)} applied skills have no unintended duplicates")
         return 0
     except DistributionError as exc:
         print(f"SYNC_ERROR: {exc}", file=sys.stderr)

@@ -27,19 +27,22 @@
   "discovery_graph": {
     "_comment": "The real set of directories each agent scans for skills, verified against each agent's own docs/source (not guessed). `write_root` names a key in `targets` this repo actually writes to; null means the agent reads that path natively but this repo must NOT write there, because it is redundant with (or deprecated in favor of) a `write_root` this repo already populates. Adding a physical copy at a null-write_root path would create a real duplicate in that agent's effective catalog, not fix one. See `discovery_graph_notes.md` for the underlying evidence per agent.",
     "claude-code": {
+      "recursive": false,
       "roots": [
         { "path": ".claude/skills", "write_root": "claude", "scope": "user+project" }
       ],
       "dedup": "single-root; no cross-tool overlap"
     },
     "codex": {
+      "recursive": true,
       "roots": [
         { "path": ".agents/skills", "write_root": "agents", "scope": "user+project" },
         { "path": ".codex/skills", "write_root": null, "scope": "user", "note": "deprecated by Codex itself, kept only for backward compatibility -- do not write here" }
       ],
-      "dedup": "by-path, not by name: a same-name skill present at two roots is shown twice, unmerged"
+      "dedup": "by-path, not by name: a same-name skill present at two roots (or at two subdirectories within the SAME root) is shown twice, unmerged"
     },
     "opencode": {
+      "recursive": true,
       "roots": [
         { "path": ".claude/skills", "write_root": "claude", "scope": "user+project", "note": "external compat scan, on by default" },
         { "path": ".agents/skills", "write_root": "agents", "scope": "user+project", "note": "external compat scan, on by default; scanned after .claude, wins ties" },
@@ -48,6 +51,7 @@
       "dedup": "by name, last-scan-wins, logs a warning on collision"
     },
     "cursor": {
+      "recursive": true,
       "roots": [
         { "path": ".claude/skills", "write_root": "claude", "scope": "user+project", "note": "legacy-compat scan" },
         { "path": ".agents/skills", "write_root": "agents", "scope": "user+project", "note": "primary scan" },
