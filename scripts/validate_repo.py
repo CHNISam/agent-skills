@@ -83,13 +83,46 @@ def validate(root: Path) -> list[str]:
         "README.md",
         "NOTICE",
         "skill-profiles.json",
+        "discovery_graph_notes.md",
         "scripts/distribute_skills.py",
         "scripts/validate_repo.py",
+        "scripts/audit_catalog.py",
         ".github/workflows/ci.yml",
     ]
     for rel in required_files:
         if not (root / rel).is_file():
             errors.append(f"missing required repository file: {rel}")
+
+    targets = manifest.get("targets", {})
+    if not isinstance(targets, dict) or not targets:
+        errors.append("skill-profiles.json: targets must be a non-empty object")
+    discovery_graph = manifest.get("discovery_graph", {})
+    if not isinstance(discovery_graph, dict) or not discovery_graph:
+        errors.append("skill-profiles.json: discovery_graph is required")
+    else:
+        referenced_write_roots: set[str] = set()
+        for agent, entry in discovery_graph.items():
+            if agent == "_comment":
+                continue
+            roots = entry.get("roots") if isinstance(entry, dict) else None
+            if not isinstance(roots, list) or not roots:
+                errors.append(f"discovery_graph[{agent!r}]: roots must be a non-empty list")
+                continue
+            for root_entry in roots:
+                write_root = root_entry.get("write_root") if isinstance(root_entry, dict) else None
+                if write_root is None:
+                    continue
+                referenced_write_roots.add(write_root)
+                if write_root not in targets:
+                    errors.append(
+                        f"discovery_graph[{agent!r}] names write_root {write_root!r}, "
+                        f"which is not a key in targets: {sorted(targets)}"
+                    )
+        orphan_targets = sorted(set(targets) - referenced_write_roots)
+        if orphan_targets:
+            errors.append(
+                f"targets has entries no discovery_graph root ever writes through: {orphan_targets}"
+            )
 
     readme = (root / "README.md").read_text(encoding="utf-8") if (root / "README.md").exists() else ""
     for name in sorted(retired):

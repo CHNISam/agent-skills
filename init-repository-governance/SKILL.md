@@ -64,8 +64,10 @@ add, a real mechanism behind it; drop it rather than writing an unenforced rule.
    Prefer tests/checks/CI over prose. Do not rely on coverage percentage alone.
 5. **Review:** route broad/high-risk diffs to `large-change-review` and its one
    `review-pack.md`; independent review is optional unless repository policy requires it.
-6. **Self-improvement:** route rejected outcomes and repeated failures to
-   `preventing-repeat-failures`, keeping project-specific protections in the project.
+6. **Self-improvement:** when an outcome is rejected or a failure repeats, prefer the
+   smallest durable fix that would have caught it — a regression test, then a deterministic
+   check, then a project rule — before adding prose; keep the protection in the project
+   unless the failure is proven to repeat across projects.
 7. **Source of truth:** state what the repository owns and what external product/roadmap
    system owns, without duplicating live backlog state.
 

@@ -38,7 +38,7 @@ def load_manifest(source: Path) -> dict:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise DistributionError(f"cannot read {path}: {exc}") from exc
-    if data.get("schema_version") != 1:
+    if data.get("schema_version") not in (1, 2):
         raise DistributionError("unsupported skill-profiles.json schema_version")
     return data
 
@@ -234,6 +234,34 @@ def apply_target(
         shutil.rmtree(backup, ignore_errors=True)
 
 
+def decommission_target(target: Path, apply: bool) -> list[str]:
+    """Step back from managing `target` entirely.
+
+    Removes exactly the skill directories this tool's own state file at `target`
+    recorded as managed (never anything else — an unmanaged personal skill sitting
+    next to them is untouched), then removes the state file itself. Used when a
+    discovery-graph change means this repo no longer writes to a root it used to,
+    so a prior installation's leftovers there would otherwise sit forever, never
+    reachable by --prune (which only prunes within a currently configured target).
+    """
+    path = state_path(target)
+    if path is None:
+        return []
+    state = read_state(target)
+    managed = sorted(state.get("managed_skills", []))
+    if not apply:
+        return managed
+    for name in managed:
+        destination = target / name
+        if destination.exists():
+            shutil.rmtree(destination)
+    for name in (STATE_FILE, *LEGACY_STATE_FILES):
+        candidate = target / name
+        if candidate.exists():
+            candidate.unlink()
+    return managed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=repo_root())
@@ -242,7 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--target",
         action="append",
-        help="agents, codex, claude, cursor, opencode, or all; repeatable",
+        help="a key in skill-profiles.json's targets (currently: agents, claude), or all; repeatable",
     )
     parser.add_argument("--apply", action="store_true", help="perform the planned writes")
     parser.add_argument(
@@ -255,11 +283,35 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="remove skills previously managed by this tool but absent from the profile",
     )
+    parser.add_argument(
+        "--decommission",
+        type=Path,
+        help=(
+            "step back from managing this directory entirely: remove exactly the "
+            "skills its own state file says this tool placed there, then remove "
+            "that state file. Ignores --profile/--target. Dry-run by default."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.decommission is not None:
+        target = args.decommission.expanduser().resolve()
+        managed = decommission_target(target, args.apply)
+        if not managed:
+            print(f"DECOMMISSION_NOOP: {target} has no recorded managed skills")
+            return 0
+        if not args.apply:
+            print(
+                f"DRY_RUN: would remove {len(managed)} skills from {target}: "
+                f"{managed}; pass --apply to execute"
+            )
+            return 0
+        print(f"DECOMMISSION_OK: removed {len(managed)} skills from {target}: {managed}")
+        return 0
+
     source = args.source.resolve()
     try:
         manifest = load_manifest(source)

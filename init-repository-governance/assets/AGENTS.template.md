@@ -34,9 +34,10 @@ silently replace them.
   to get green; confirm before changing a business expectation.
 - Broad/high-risk changes use `large-change-review` and one `review-pack.md`. Independent
   review is optional unless project policy says otherwise; fresh verification is required.
-- Explicit dissatisfaction, escaped regressions, and repeated failures use
-  `preventing-repeat-failures`: prefer test/check/CI, then a project rule, and promote to a
-  shared Skill only when genuinely cross-project.
+- Explicit dissatisfaction, escaped regressions, and repeated failures get the smallest
+  durable fix that would have caught them — a regression test, then a deterministic check,
+  then a project rule — before adding prose; promote to a shared Skill only when the
+  failure is proven to repeat across projects.
 
 ## Project invariants
 

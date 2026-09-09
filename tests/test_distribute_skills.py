@@ -159,6 +159,64 @@ class DistributionTests(unittest.TestCase):
         )
         self.assertTrue((target / "beta").exists())
 
+    def test_second_dry_run_after_apply_is_fully_converged(self):
+        # Apply, then dry-run again with the same profile: nothing should be
+        # pending. This is the idempotency guarantee the discovery-aware
+        # redesign depends on -- a converged machine must show zero diff.
+        self.assertEqual(self.run_dist("--profile", "core", "--apply"), 0)
+        target = self.home / ".codex" / "skills"
+        before = sorted(p.name for p in target.iterdir())
+
+        self.assertEqual(self.run_dist("--profile", "core"), 0)  # dry-run
+
+        after = sorted(p.name for p in target.iterdir())
+        self.assertEqual(before, after, "dry-run after apply must not report or make changes")
+
+    def test_decommission_dry_run_lists_without_removing(self):
+        self.assertEqual(self.run_dist("--profile", "core", "--apply"), 0)
+        target = self.home / ".codex" / "skills"
+
+        managed = dist.decommission_target(target, apply=False)
+
+        self.assertEqual(managed, ["alpha"])
+        self.assertTrue((target / "alpha").exists())
+        self.assertTrue((target / dist.STATE_FILE).exists())
+
+    def test_decommission_apply_removes_only_managed_skills_and_state_file(self):
+        self.assertEqual(self.run_dist("--profile", "core", "--apply"), 0)
+        target = self.home / ".codex" / "skills"
+        unrelated = target / "someone-elses-skill"
+        unrelated.mkdir()
+        (unrelated / "SKILL.md").write_text("keep me", encoding="utf-8")
+
+        managed = dist.decommission_target(target, apply=True)
+
+        self.assertEqual(managed, ["alpha"])
+        self.assertFalse((target / "alpha").exists())
+        self.assertFalse((target / dist.STATE_FILE).exists())
+        self.assertTrue(unrelated.exists())
+        self.assertEqual((unrelated / "SKILL.md").read_text(encoding="utf-8"), "keep me")
+
+    def test_decommission_is_idempotent(self):
+        self.assertEqual(self.run_dist("--profile", "core", "--apply"), 0)
+        target = self.home / ".codex" / "skills"
+
+        first = dist.decommission_target(target, apply=True)
+        second = dist.decommission_target(target, apply=True)
+
+        self.assertEqual(first, ["alpha"])
+        self.assertEqual(second, [])
+
+    def test_decommission_on_never_managed_directory_is_a_noop(self):
+        target = self.home / ".never" / "touched"
+        target.mkdir(parents=True)
+        (target / "personal-skill").mkdir()
+
+        managed = dist.decommission_target(target, apply=True)
+
+        self.assertEqual(managed, [])
+        self.assertTrue((target / "personal-skill").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

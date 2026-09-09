@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "profiles": {
     "core": [
       "ask-questions-if-underspecified",
@@ -7,10 +7,7 @@
       "context-retrieval",
       "git-branch-experiment-management",
       "git-workflow",
-      "preventing-repeat-failures",
-      "init-repository-governance",
-      "large-change-review",
-      "systematic-debugging"
+      "init-repository-governance"
     ],
     "authoring": [
       "ask-questions-if-underspecified",
@@ -18,25 +15,55 @@
       "context-retrieval",
       "git-branch-experiment-management",
       "git-workflow",
-      "preventing-repeat-failures",
       "init-repository-governance",
-      "large-change-review",
-      "systematic-debugging",
       "skill-creator"
     ],
     "all": "*"
   },
   "targets": {
     "agents": ".agents/skills",
-    "codex": ".codex/skills",
-    "claude": ".claude/skills",
-    "cursor": ".cursor/skills",
-    "opencode": ".config/opencode/skills"
+    "claude": ".claude/skills"
+  },
+  "discovery_graph": {
+    "_comment": "The real set of directories each agent scans for skills, verified against each agent's own docs/source (not guessed). `write_root` names a key in `targets` this repo actually writes to; null means the agent reads that path natively but this repo must NOT write there, because it is redundant with (or deprecated in favor of) a `write_root` this repo already populates. Adding a physical copy at a null-write_root path would create a real duplicate in that agent's effective catalog, not fix one. See `discovery_graph_notes.md` for the underlying evidence per agent.",
+    "claude-code": {
+      "roots": [
+        { "path": ".claude/skills", "write_root": "claude", "scope": "user+project" }
+      ],
+      "dedup": "single-root; no cross-tool overlap"
+    },
+    "codex": {
+      "roots": [
+        { "path": ".agents/skills", "write_root": "agents", "scope": "user+project" },
+        { "path": ".codex/skills", "write_root": null, "scope": "user", "note": "deprecated by Codex itself, kept only for backward compatibility -- do not write here" }
+      ],
+      "dedup": "by-path, not by name: a same-name skill present at two roots is shown twice, unmerged"
+    },
+    "opencode": {
+      "roots": [
+        { "path": ".claude/skills", "write_root": "claude", "scope": "user+project", "note": "external compat scan, on by default" },
+        { "path": ".agents/skills", "write_root": "agents", "scope": "user+project", "note": "external compat scan, on by default; scanned after .claude, wins ties" },
+        { "path": ".config/opencode/skills", "write_root": null, "scope": "user", "note": "OpenCode's own root; redundant once .agents/skills is populated -- do not write here" }
+      ],
+      "dedup": "by name, last-scan-wins, logs a warning on collision"
+    },
+    "cursor": {
+      "roots": [
+        { "path": ".claude/skills", "write_root": "claude", "scope": "user+project", "note": "legacy-compat scan" },
+        { "path": ".agents/skills", "write_root": "agents", "scope": "user+project", "note": "primary scan" },
+        { "path": ".codex/skills", "write_root": null, "scope": "user+project", "note": "legacy-compat scan; do not write here" },
+        { "path": ".cursor/skills", "write_root": null, "scope": "user+project", "note": "Cursor's own root; redundant once .agents/skills is populated -- do not write here" }
+      ],
+      "dedup": "undocumented by Cursor; verify empirically in Cursor's Skills UI after distribution"
+    }
   },
   "retired_skills": [
     "5-whys-root-cause-analysis",
+    "ai-native-product-spec",
     "ai-native-sop",
     "pause-and-clarify-riper5",
+    "preventing-repeat-failures",
+    "product-to-spec",
     "root-cause-and-verification",
     "using-superpowers",
     "verification-before-completion"
