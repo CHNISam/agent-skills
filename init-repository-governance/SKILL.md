@@ -1,53 +1,72 @@
 ---
 name: init-repository-governance
-description: Inspect a new or existing software repository and create, migrate, or improve concise AGENTS.md guidance tailored to its actual stack, commands, ownership boundaries, Git workflow, testing, safety, clarification, design, and release practices. Use when initializing a repository for Codex, running or extending `/init`, converting reusable CLAUDE.md rules to AGENTS.md, standardizing agent instructions across repositories, or auditing repository guidance for missing or overly project-specific rules.
+description: Inspect a software repository and create or improve concise, evidence-based agent guidance plus mechanical verification wiring. Use for repository /init, AGENTS.md or CLAUDE.md adoption, new-project harness setup, or auditing project instructions for stale, duplicated, missing, or unenforced rules.
 ---
 
 # Initialize Repository Governance
 
-Create evidence-based repository instructions. Treat Codex `/init` as an optional starter, then replace generic output with rules grounded in the repository.
+Build a thin adapter from the shared harness to the repository's real commands and
+invariants. Do not install a framework or copy the global harness into every project.
 
-## Workflow
+## Inspect first
 
-1. Read every applicable `AGENTS.md`, `AGENTS.override.md`, and configured fallback instruction file before changing anything. Also inspect `CLAUDE.md` when present as a migration source, not as automatically active Codex guidance.
-2. Before designing Git policy or performing any branch, commit, push, pull, merge, rebase, PR, tag, release, CI/CD, or Git-hook operation, completely read and follow the installed `git-workflow` skill. If it is unavailable, stop before Git mutations and record that the required workflow could not be loaded.
-3. Before allowing concurrent agents or sessions to write in a Git repository, assign every writer its own Git worktree and branch, and record each worktree path, branch, and ownership boundary. Read-only agents may share a worktree. If another writer already occupies the current worktree or unexplained concurrent changes appear, stop writing and preserve the worktree until ownership is confirmed.
-4. Run `python <skill-dir>/scripts/inventory_repository.py --root <repo-root>` to collect a read-only inventory. If Python is unavailable, inspect the same facts manually. The report includes detected `languages`, best-effort `verification_commands`, reachable `language_servers`, a tailored `search_exclusions` list, and `suggested_skills` (core + domain). Treat every detected command as a candidate to verify against manifests/CI, not as ground truth.
-5. Read the detected manifests, primary README, contribution guide, CI configuration, test configuration, release documentation, and existing instruction files. Prefer repository evidence over assumptions.
-6. Read [references/reusable-governance.md](references/reusable-governance.md). Select only rules relevant to this repository.
-6a. Configure the harness for this repository, only where it applies:
-   - **Search/index exclusions.** Apply a tailored list from [assets/search-exclusions.md](assets/search-exclusions.md) via `.gitignore` / `.cursorignore` / editor `search.exclude`. Goal: minimum relevant context.
-   - **Verification.** If the repo has a canonical test/verify command, record it in `AGENTS.md`. Otherwise drop a `verify.config` (keys `format`, `lint`, `typecheck`, `test`, `setup`) so `automated-testing-workflow/scripts/verify.*` runs the deterministic gate. Do not invent commands.
-   - **Protected / generated paths.** List generated code, lockfiles, vendored trees, and snapshot fixtures that agents must not hand-edit; enforce with CODEOWNERS or a CI check when the risk justifies it.
-   - **Skill wiring.** Reference the `core` skills from `suggested_skills` in the `AGENTS.md` implementation-workflow section (retrieval → `context-retrieval`; verification → `automated-testing-workflow`; broad/high-risk diffs → `large-change-review`). List `domain` skills as available, not mandatory. Never mandate a skill that is not installed.
-   - **CI adoption** is a follow-up hook, not required by init: note whether the repo should later reference a shared reusable workflow.
-   - **Source-of-Truth routing.** If an external system owns product/roadmap state, record the boundary (what the repo owns vs what it must not duplicate).
-7. Decide the instruction layout:
-   - Put repository-wide commands, invariants, safety rules, and completion criteria in the root `AGENTS.md`.
-   - Put service-, package-, or language-specific rules in the closest nested `AGENTS.md`.
-   - Use `AGENTS.override.md` only for an intentional temporary replacement.
-   - Keep detailed policies in checked-in docs and link them from `AGENTS.md`.
-8. Start from [assets/AGENTS.template.md](assets/AGENTS.template.md) when creating a file. When updating a file, preserve accurate project-specific rules and merge deliberately instead of overwriting it wholesale.
-9. Remove every placeholder and irrelevant section. Replace example commands with commands verified from manifests, task runners, CI, or documentation.
-10. Use controlled GitFlow as the user's preferred default only when the repository has no contrary documented branch model: `feature/*` to `develop`, `release/*` from `develop` to `main`, and `hotfix/*` from `main` back to both long-lived branches. Keep `main` releasable and prohibit direct development there. Ask before changing an established model or repairing a repository whose current branches contradict the policy.
-11. Ask before selecting any other policy that repository evidence cannot establish and that materially affects contributors, including production release gates, accepted business behavior, security boundaries, migrations, or new tooling. Continue independent read-only discovery while awaiting the answer.
-12. Validate with `python <skill-dir>/scripts/validate_agents.py <path-to-AGENTS.md>`. Resolve errors; treat warnings as prompts for human judgment.
-13. Report created or updated files, preserved local rules, verified commands, unresolved choices, and validation performed.
+1. Read every applicable `AGENTS.md`, override/fallback instruction file, and `CLAUDE.md`
+   or scoped editor rule that may contain accurate project knowledge.
+2. Inspect repository status/worktrees, manifests, README/contribution docs, CI, test and
+   build configuration, release docs, generated/vendor boundaries, and architecture
+   decisions. Preserve unrelated changes.
+3. Run `scripts/inventory_repository.py --root <repo-root>` when available. Treat detected
+   commands as candidates and confirm them against manifests/CI.
+4. Read [references/reusable-governance.md](references/reusable-governance.md) and select
+   only rules that apply.
 
-## Required Judgments
+## Create the minimum effective adapter
 
-- Never copy repository names, absolute paths, deployment vendors, feature flags, reference projects, or product boundaries from the source template unless they apply to the target repository.
-- Never mandate a named skill, tool, package manager, branch model, hosting platform, or test command unless it is installed, available, or explicitly chosen.
-- Do not silently replace controlled GitFlow with trunk-based development merely because a repository is small or has one contributor.
-- Prefer concise operational rules over philosophy. Keep the combined instruction chain comfortably below Codex's configured project-document byte limit; use nested files and linked docs when necessary.
-- Encode repeatable human judgment in `AGENTS.md`; enforce mechanical formatting and static checks with linters, hooks, or CI instead of prose alone.
-- Preserve uncommitted user changes. Do not use repository initialization as permission to commit, push, install dependencies, modify global configuration, or alter production systems.
-- In Git repositories, never let multiple writing agents or sessions share one worktree, even when their planned file sets do not overlap. Require a dedicated worktree and branch per writer; integrate only reviewed commits. When shared-worktree interference is discovered, stop all further writes, formatting, staging, commits, and deployments from that worktree until ownership is resolved.
-- Before downloading a browser, browser driver, Playwright runtime, or similar large tool, check existing system browsers, non-default/portable install paths, and available IDE browser connectors. A missing executable at one default path is inconclusive. Prefer an existing browser and obtain explicit user authorization before any download or installation.
-- Before accepting local UI evidence, verify the exact URL, port owner, and page title or a distinctive DOM marker. An HTTP 200 response alone does not prove the intended application is serving the port.
+- Root `AGENTS.md`: repository identity/ownership, verified commands, critical invariants,
+  Git/release safety, protected paths, and completion criteria.
+- Nested `AGENTS.md`: only for a subtree with genuinely different ownership or commands.
+- `CLAUDE.md`: thin pointer to `AGENTS.md` plus any Claude-only adapter; no duplicated policy.
+- Cursor/editor rules: scoped only when the editor needs behavior not already available
+  from `AGENTS.md` or installed Skills.
 
-## Codex Integration
+Start from [assets/AGENTS.template.md](assets/AGENTS.template.md) for a new file. Remove
+placeholders and irrelevant sections. Merge accurate existing project rules rather than
+overwriting them wholesale.
 
-- `/init` can generate an initial `AGENTS.md` in the current directory. Use this skill to tailor or audit that scaffold.
-- Codex loads global guidance first, then one applicable instruction file per directory from repository root to the working directory. Closer files take precedence.
-- Codex reads `AGENTS.md` natively. Migrate useful `CLAUDE.md` content explicitly or configure a fallback filename; do not assume `CLAUDE.md` is discovered by default.
+## Wire the harness
+
+1. **Plain-language task contract:** tell agents to infer Goal, Constraints, and Done when
+   internally. Repository discovery answers repository facts. Material product or risk
+   ambiguity uses `ask-questions-if-underspecified`; minor reversible choices follow
+   project conventions.
+2. **Retrieval:** route to `context-retrieval` and add stack-specific search exclusions.
+3. **Verification:** record one canonical repository command. If none exists, add an
+   honest `verify.config` for `automated-testing-workflow/scripts/verify.*`; never invent
+   a command. A normal behavior change must not be marked done without relevant fresh
+   evidence.
+4. **Test quality:** encode critical observable contracts and previously escaped bugs.
+   Prefer tests/checks/CI over prose. Do not rely on coverage percentage alone.
+5. **Review:** route broad/high-risk diffs to `large-change-review` and its one
+   `review-pack.md`; independent review is optional unless repository policy requires it.
+6. **Self-improvement:** route rejected outcomes and repeated failures to
+   `harness-self-improvement`, keeping project-specific protections in the project.
+7. **Source of truth:** state what the repository owns and what external product/roadmap
+   system owns, without duplicating live backlog state.
+
+Reference only installed Skills. Domain Skills are available on demand, never mandatory
+merely because the repository uses that language or engine.
+
+## Git and authority
+
+Read the installed `git-workflow` before Git-policy decisions or mutations. Follow the
+repository's established branch model; ask before replacing it. Give genuinely concurrent
+writers separate worktrees/branches. Initialization does not authorize pushes, releases,
+dependency installation, production writes, destructive cleanup, or global configuration
+changes.
+
+## Validate
+
+Run `scripts/validate_agents.py <path-to-AGENTS.md>`, the repository's focused instruction
+checks, and its canonical verification when executable content changed. Report preserved
+rules, changed files, verified commands, mechanical gates added, unresolved choices, and
+what was not run.

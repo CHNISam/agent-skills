@@ -1,167 +1,153 @@
 # Agent Harness
 
-This repository is a **skill library** plus a thin **harness spine**: the small set of
-reusable workflows, ladders, and routing rules that make an AI coding agent
-token-efficient, mechanically verifiable, and safe to let loose on a real codebase.
+This repository is a versioned skill library plus a small, enforceable harness core for
+Codex, Claude Code, Cursor, OpenCode, and other Agent Skills-compatible coding agents.
+It is not an agent framework. Prefer native capabilities, repository tests, and CI over
+more orchestration.
 
-It is **not** a framework. There is no runtime, no registry, no package manager, no
-vector DB. Skills are plain [Agent Skills](https://github.com/agentskills/agentskills)
-(`SKILL.md` + optional `references/` / `scripts/`), discovered and loaded on demand.
+The Git worktree is the source of truth. Local agent skill directories are generated
+copies managed by `scripts/distribute_skills.py`; do not edit those copies as canonical
+source.
 
-GitHub (`CHNISam/agent-skills`) is the durable backup. `origin` is Aliyun codeup.
+## Operating contract
 
----
+### 1. Turn plain language into a task contract
 
-## Design rule: cheapest capable option first
+Users should be able to state the task naturally. Internally normalize it to:
 
-Do not reach for infrastructure. For any capability, walk this ladder and stop at the
-first rung that works:
-
-```
-native agent/tool ability
-  → existing MCP server / tool
-  → existing Skill in this repo
-  → existing repo script or test
-  → GitHub-native mechanism (Actions, reusable workflow, CODEOWNERS, branch protection)
-  → a tiny adapter
-  → custom infrastructure  (last resort, record why the rungs above failed)
+```text
+Goal        observable outcome
+Constraints what must not change, risk/compatibility boundaries
+Done when   evidence that proves the outcome
+References  only supplied or genuinely useful sources
 ```
 
-`discover → select → load → execute`, never `install everything → preload everything`.
-Rare-but-useful skills stay in the repo without being globally loaded.
+Do not require the user to fill a template. First inspect repository evidence. Use a
+reasonable project convention for small reversible ambiguity. Ask only when unresolved
+ambiguity materially changes product behavior, scope, architecture, risk, or an
+irreversible action. Treat user explanations of causes as hypotheses until verified;
+treat explicit product intent as authoritative.
 
----
+`ask-questions-if-underspecified` teaches the low-friction question format when this gate
+actually fires.
 
-## The four layers
+### 2. Retrieve the least context that can answer the question
 
-### 1. Capability — MCP / Skills
+Use `context-retrieval`:
 
-Skills and MCP servers are first-class, but not all loaded at once. Add a business MCP
-(GitHub, DB, Slack, cloud) only when a task needs it; keep the baseline to
-**Context7** (latest official docs). Do not install a filesystem MCP — the agent's
-native file tools are stronger. See `coding-agent-environment` for the infra baseline
-(LSP, ripgrep/fd, per-agent config).
-
-**Is it a Skill?** Keep as a Skill when it is a reusable multi-step workflow that needs
-judgment and helps across repos. Otherwise: mechanically checkable → CI/script;
-reference knowledge → docs; short universal invariant → AGENTS/CLAUDE; obsolete or
-duplicated → delete.
-
-### 2. Context — retrieval ladder
-
-Retrieval cost is a first-class concern. Aim for **minimum relevant context, not maximum**.
-Skill: **`context-retrieval`**.
-
-```
-known file / already-loaded context
-  → LSP  (definition, references, usages, symbols, diagnostics)
-  → exact text / grep / glob / filename search
-  → semantic repo search / IDE index
-  → targeted file reads
-  → repo docs / Skills
-  → MCP / external sources
+```text
+known context → LSP → exact search → semantic/index search → targeted reads → repo docs
+              → installed Skill → external source/MCP
 ```
 
-Do **not** build a custom vector DB, embedding service, RAG server, code indexer, or LSP
-proxy unless the existing environment demonstrably cannot answer the need.
+Stop when the evidence is sufficient. Do not build a vector database, RAG service, code
+graph, or custom indexer until native tools have demonstrably failed.
 
-### 3. Verification — deterministic gate + judgment
+### 3. Verification is the completion gate
 
-Skill **`automated-testing-workflow`** owns the judgment (scope by risk, diagnose
-failures, modification authority). Script **`automated-testing-workflow/scripts/verify.*`**
-runs the deterministic gate (format → lint → typecheck → test, fail-fast, exact report).
+`automated-testing-workflow` owns verification judgment. A repository's canonical
+command or `automated-testing-workflow/scripts/verify.*` executes the deterministic
+gate. No relevant failure may be hidden by deleting, skipping, weakening, or repeatedly
+rerunning tests until green.
 
-Risk-based scope: small localized change → targeted tests; normal feature → canonical
-repo verification; bug fix → reproduce + regression + prove-gone; large/high-risk →
-broad; UI/game → automated checks **plus** real visual evidence. Never declare completion
-from code inspection alone. Never weaken or delete tests to make a change pass.
+Priority:
 
-### 4. Change isolation & review
+```text
+P0 executable requirement and regression tests
+P0 deterministic format/lint/type/build/test gate
+P1 runtime/integration evidence at real boundaries
+P1 test quality: the test would fail if required behavior broke
+P2 review-pack.md for broad/high-risk changes
+P3 independent human/agent review when risk still needs judgment
+```
 
-- **Branch / worktree:** `git-workflow` (conventions, safety) + `git-branch-experiment-management`
-  (`exp/*` contract, accept/reject/continue). Default: task → short-lived `change/*` branch
-  → verify → integrate. A dedicated **worktree per writer** only when writers are truly
-  concurrent, or for a risky isolated experiment — not for every sequential task.
-- **Review:** `requesting-code-review` for a lightweight self-check before an ordinary
-  merge. **`large-change-review`** for broad refactors / high-risk boundaries — a
-  risk-tiered diff walkthrough (complete diff vs merge-base, control-flow deltas,
-  accidental changes, dead code, missing regression coverage) plus an *optional*
-  independent read-only reviewer only when size/risk justifies the token cost. It
-  produces exactly one canonical hand-off artifact, `review-pack.md` — never per-task
-  report filenames.
-- Do **not** default to spawning subagents or reviewers. Primary agent + tests is enough
-  for a normal small feature.
+Passing tests are evidence only when they exercise the requirement. Prefer many fast,
+deterministic tests, enough contract/integration coverage for real boundaries, and a few
+high-value E2E/runtime flows. UI and games add visual/runtime evidence when pixels or
+animation matter. A flaky result is a defect signal, not a pass.
 
----
+### 4. Isolate change; scale review by risk
 
-## Repository initialization
+- `git-workflow` owns general Git safety and conventions.
+- `git-branch-experiment-management` owns experiments and concurrent-writer isolation.
+- Normal work uses a short-lived change branch. A separate worktree is required for
+  genuinely concurrent writers and risky isolated experiments, not every sequential edit.
+- `large-change-review` produces one `review-pack.md` outside shipped output for broad or
+  high-risk work. The walkthrough helps people and future agents understand the whole
+  diff. Independent review is optional and risk-triggered; verification is not optional.
 
-`init-repository-governance` inspects a target repo and configures **only what applies**:
-stack & commands, LSP availability, search-exclusion globs, relevant skills, MCP
-recommendations, AGENTS/CLAUDE/Cursor adapters, Git/branch strategy, testing + review
-workflow wiring, protected/generated paths, Source-of-Truth routing. It does not install
-everything. There is exactly one initialization system — extend it, never fork it.
+### 5. Convert failures into the smallest durable guard
 
-Instruction files stay thin: `AGENTS.md` = cross-agent entry point (commands, invariants,
-completion criteria); `CLAUDE.md` = thin Claude adapter; Cursor rules = scoped; detailed
-logic lives in Skills / docs / CI, not in always-loaded prose.
+Use `harness-self-improvement` when the user rejects an outcome, a regression escapes, a
+review finds a recurring failure, or an agent repeatedly takes the wrong path.
 
----
+```text
+failure → classify task/project/shared scope → fix current outcome
+        → regression test → deterministic check/CI → project rule → shared Skill
+        → global prose only as a last resort
+```
+
+Do not promote a one-off preference into global policy. Shared-harness changes require a
+cross-project or repeated, generalizable failure and explicit authority to edit this
+repository.
+
+## Distribution
+
+`harness-profile.json` is the machine-readable routing manifest.
+
+```bash
+# Preview; no writes
+python scripts/distribute_skills.py --profile core --target all
+
+# First adoption: explicitly accept replacement of same-name existing copies
+python scripts/distribute_skills.py --profile core --target all --apply --adopt-existing
+
+# Normal refresh after pulling this repository
+python scripts/distribute_skills.py --profile core --target all --apply --prune
+```
+
+The distributor records ownership in each target's `.harness-managed.json`. It replaces
+or prunes only skills it manages, refuses unmanaged collisions by default, stages copies
+atomically, verifies digests, and leaves unrelated personal skills untouched.
 
 ## Skill tiers
 
-`core` skills form the harness spine and are candidates for every code repo. `on-demand`
-are loaded when the situation calls for them. `domain` are engine/vendor/format/region
-specific — available, never globally loaded. `deprecated` are removed or superseded.
+### Core profile
 
-### core
-
-| Skill | Role |
+| Skill | Responsibility |
 |---|---|
-| `context-retrieval` | cheap→expensive retrieval ladder (layer 2) |
-| `automated-testing-workflow` | risk-based verification judgment + `scripts/verify.*` gate (layer 3) |
-| `large-change-review` | risk-tiered diff walkthrough for broad / high-risk changes (layer 4) |
-| `git-workflow` | branch strategy, Conventional Commits, history safety |
-| `git-branch-experiment-management` | `exp/*` contract, worktree-per-writer, accept/reject/continue |
-| `init-repository-governance` | inspect a repo, write tailored thin `AGENTS.md`, wire the harness |
-| `coding-agent-environment` | personal infra baseline: LSP, ripgrep/fd, Context7, per-agent config |
-| `root-cause-and-verification` | orchestrates: clarify → 5-Why / systematic-debugging → verify-before-claim |
-| `writing-skills` | author / edit / test skills (maintain the harness itself) |
+| `ask-questions-if-underspecified` | resolve material intent/risk ambiguity with minimum friction |
+| `automated-testing-workflow` | requirements-first test strategy, quality, and completion evidence |
+| `context-retrieval` | cheapest-capable retrieval ladder |
+| `git-workflow` | Git conventions and history safety |
+| `git-branch-experiment-management` | experiment lifecycle and concurrent-writer isolation |
+| `harness-self-improvement` | route failures to the smallest durable protection |
+| `init-repository-governance` | tailor thin project adapters and wire mechanical gates |
+| `large-change-review` | whole-diff walkthrough and canonical review pack |
+| `systematic-debugging` | evidence → falsifiable hypothesis → smallest experiment → root fix |
 
-Atoms used by `root-cause-and-verification`: `ask-questions-if-underspecified`,
-`pause-and-clarify-riper5`, `5-whys-root-cause-analysis`, `systematic-debugging`,
-`verification-before-completion`.
+### On demand
 
-### on-demand
+`brainstorming` for genuine product discovery; `test-driven-development` when red/green
+adds confidence; `skill-creator` for maintaining skills; domain/vendor/format skills only
+when their specific task appears. They are not installed by the default core profile.
 
-`brainstorming` · `writing-plans` · `executing-plans` · `subagent-driven-development` ·
-`dispatching-parallel-agents` · `using-git-worktrees` · `finishing-a-development-branch` ·
-`requesting-code-review` · `receiving-code-review` · `test-driven-development` ·
-`ai-native-sop` · `ai-native-product-spec` · `skill-creator`
+### Retired from the active surface
 
-### domain
+`using-superpowers`, `root-cause-and-verification`, `5-whys-root-cause-analysis`,
+`pause-and-clarify-riper5`, `verification-before-completion`, and `ai-native-sop` were
+removed. Their useful invariants live once in the core above; their mandatory wrappers,
+duplicated reasoning instructions, and prose-heavy ceremony do not.
 
-Engine / vendor / format / region specific — e.g. `godot-master`, `godot-agent-vision`,
-`claude-api`, `mcp-builder`, `openai-docs`, `shadcn-ui`, the `design*` family,
-`docx` / `pdf` / `pptx` / `xlsx`, `playwright`, `webapp-testing`, `screenshot`,
-`tcb-connect`, `cloudbase-datamodel`, `clash-verge-claude-routing`, and the
-Aliyun / Yunxiao / miniprogram / media workflow skills. Kept available; not harness-core.
+## Harness verification
 
-### deprecated / removed
+Every change to this repository must pass:
 
-- `superpowers/` — was a verbatim duplicate bundle of ~14 top-level skills. **Removed.**
-  Top-level skill names are canonical; do not re-nest bundles.
-- `codex-resume-handoff/`, `claude-code-enable-mcp/` — empty. **Removed.**
-- Unity skills (`unity-cli`, `levelplay-unity-integration`, `build-live-game`,
-  `implement-in-app-purchases`, `ui-*`, `optimize-*`, `sprite-editor`, `shader-graph-*`,
-  …) — being pruned by the maintainer; tracked as an in-progress working-tree change.
+```bash
+python scripts/validate_harness.py
+python -m unittest discover -s tests -p "test_*.py" -v
+```
 
----
-
-## Known cleanup (follow-ups, not this pass)
-
-- `research-writing-assistant/` carries its own nested `.git/` (committed as a bare
-  gitlink, no `.gitmodules`). De-vendor to plain files or register a proper submodule.
-- Publish a reusable GitHub workflow (`workflow_call`) so consumer repos reference one
-  verification pipeline instead of hand-writing CI.
-- Migrate the first real consumer (`ElseWake` / `LiteTavern-Prototype`) onto this spine.
+GitHub Actions runs the same checks. `scripts/validate_harness.py` rejects malformed or
+duplicate Skill metadata, missing profile entries, discoverable retired Skills, and
+broken core routing.

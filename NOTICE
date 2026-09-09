@@ -15,8 +15,9 @@ Known upstreams
 - Superpowers (obra/superpowers) — brainstorming, dispatching-parallel-agents,
   executing-plans, finishing-a-development-branch, receiving-code-review,
   requesting-code-review, subagent-driven-development, systematic-debugging,
-  test-driven-development, using-git-worktrees, using-superpowers, verification-before-completion,
-  writing-plans, writing-skills. Adapted to this repo's layout.
+  test-driven-development, using-git-worktrees, writing-plans, writing-skills. The three
+  named core-adjacent skills were rewritten for this harness; the remaining listed skills
+  retain more of the upstream workflow and are not in the default core profile.
 
 - OpenAI Agents SDK repo skills (openai/openai-agents-python, .agents/skills, MIT):
     * large-change-review/            adapts the tier model and diff-walkthrough discipline

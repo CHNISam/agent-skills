@@ -1,39 +1,41 @@
 ---
 name: install-skills-global
-description: Install/copy skills to AI code editors. Use when user asks to install/copy/sync skills to editors, or mentions syncing skills. Before installing, check which editors the user actually has installed - do not assume all editors exist.
+description: Safely install or refresh repository-owned Agent Skills for Codex, Claude Code, Cursor, OpenCode, or the shared Agent Skills directory. Use when the user asks to install, copy, distribute, or synchronize skills across local coding agents.
 ---
 
-# Install Skills Global
+# Install Skills Across Local Agents
 
-This skill helps install/copy agent skills to AI code editors on Windows.
+Use the canonical `agent-skills` Git worktree as source. Installed agent directories are
+generated copies, not authoring sources.
 
 ## Workflow
 
-1. **Check which editors the user has** - Ask or detect which editors they use:
-   - OpenCode: `%APPDATA%/OpenCode/` or `C:/Users/Administrator/.agents/skills/` (source)
-   - Codex: `C:/Users/Administrator/.codex/skills/`
-   - Claude Code: `C:/Users/Administrator/.claude/skills/`
-   - Antigravity: `C:/Users/Administrator/.antigravity/skills/` (may not exist)
-   - Gemini CLI: Check `%USERPROFILE%/gemini/skills/` (may not exist)
+1. Locate the worktree containing `harness-profile.json` and
+   `scripts/distribute_skills.py`. Pull only with a safe fast-forward after checking the
+   branch and working tree; preserve local changes.
+2. Detect installed agents/config directories. Do not create targets the user did not
+   request when detection is inconclusive.
+3. Preview the exact plan:
 
-2. **Confirm with user** - Show them which editors are available and ask which ones to sync to
-
-3. **Copy skills** - Use `cp -r` to copy skill directories:
    ```bash
-   cp -r "source-skills/*" "target-skills/"
+   python scripts/distribute_skills.py --profile core --target all
    ```
-   Note: Ignore errors about `.git/objects/pack/` files.
 
-4. **Verify** - List target skills directory to confirm copy succeeded.
+4. On first adoption, inspect same-name existing directories. Use
+   `--adopt-existing` only after confirming they are disposable copies or their changes
+   are preserved in the source repository.
+5. Apply and verify:
 
-## Common Tasks
+   ```bash
+   python scripts/distribute_skills.py --profile core --target all --apply --adopt-existing
+   ```
 
-- **Install to specific editor**: Copy from source to target editor's skills folder
-- **Sync all available**: Copy to all detected editors
-- **Check status**: List skills in each editor to see what's installed
+   Later refreshes normally use `--apply --prune`; pruning is restricted to directories
+   recorded in `.harness-managed.json`.
+6. Restart or reload agents that do not discover changed skills live.
 
-## Notes
+Dry-run is the default. Do not replace an unmanaged collision by hand, copy with a broad
+`cp -r`, delete an entire agent skill directory, or edit generated copies as source.
 
-- Source of truth: `C:/Users/Administrator/.agents/skills/`
-- Always check first which editors the user actually has
-- Some editors may need restart after copying new skills
+Use `core` for the lightweight default, `authoring` when maintaining skills, and `all`
+only when the user deliberately wants the full library exposed to every agent.

@@ -1,27 +1,43 @@
 # agent-skills
 
-A personal library of [Agent Skills](https://github.com/agentskills/agentskills) for AI
-coding agents (Claude Code, Codex CLI, OpenCode, Cursor), plus a thin **harness spine**
-that routes between them.
+A personal, versioned library of [Agent Skills](https://github.com/agentskills/agentskills)
+for Codex, Claude Code, Cursor, and OpenCode, with a small test-first harness core.
 
-- **Start here:** [`HARNESS.md`](HARNESS.md) — the four layers (Capability, Context,
-  Verification, Change isolation & review), the cheap→expensive ladders, and the skill
-  tier table (`core` / `on-demand` / `domain` / `deprecated`).
-- **Each skill** is a directory with a `SKILL.md` (YAML frontmatter: `name`,
-  `description`) and optional `references/`, `scripts/`, `assets/`. Content loads
-  progressively — metadata first, the rest only when the skill is invoked.
-- **Licensing:** skills come from several upstreams under different licenses. Each skill's
-  own `LICENSE.txt` / `NOTICE` governs; see [`NOTICE`](NOTICE). First-party skills are MIT.
+- Read [`HARNESS.md`](HARNESS.md) for the operating contract and skill tiers.
+- `harness-profile.json` defines the portable `core`, `authoring`, and `all` profiles.
+- `scripts/distribute_skills.py` safely refreshes supported local agents from this Git
+  worktree; dry-run is the default and unrelated skills are preserved.
+- `scripts/validate_harness.py` plus `tests/` enforce the repository's own invariants in CI.
 
-## Using it in another repository
+## Install or refresh the core
 
-Run the `init-repository-governance` skill against the target repo. It inspects the
-actual stack and configures only what applies — thin `AGENTS.md`, search exclusions,
-relevant skills, MCP recommendations, Git/branch strategy, testing + review wiring — and
-never installs everything.
+```bash
+python scripts/distribute_skills.py --profile core --target all
+python scripts/distribute_skills.py --profile core --target all --apply --adopt-existing
+```
 
-## Syncing
+After first adoption, pull this repository and run:
 
-Source of truth for authored skills is `~/.agents/skills/`. This repo is the backup:
-`github` = `CHNISam/agent-skills`, `origin` = Aliyun codeup. Push with the
-`sync-global-skills` skill.
+```bash
+python scripts/distribute_skills.py --profile core --target all --apply --prune
+```
+
+The Git worktree is the source of truth. Do not edit generated copies under
+`~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`, `~/.cursor/skills`, or
+`~/.config/opencode/skills` and expect them to flow back automatically.
+
+## Adopt in a project
+
+Use `init-repository-governance`. It inspects the real stack and creates thin project
+adapters (`AGENTS.md`, `CLAUDE.md`, scoped Cursor rules only when useful), records the
+canonical verification command, and points detailed reusable behavior back to installed
+skills. It does not copy the whole skill library into the project.
+
+## Verify changes
+
+```bash
+python scripts/validate_harness.py
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+Licenses vary by skill. Each skill's `LICENSE.txt` or `NOTICE` governs; see [`NOTICE`](NOTICE).
