@@ -30,6 +30,10 @@ Use commands documented by manifests, task runners, CI, or repository documentat
 5. Run focused checks, then broader verification in proportion to risk.
 6. Review the diff and report changed files, checks run, omissions, and remaining risks.
 
+- Retrieval: follow the `context-retrieval` ladder (known context → LSP → grep/glob → semantic/index → targeted reads → docs → MCP). Aim for minimum relevant context.
+- Verification: `automated-testing-workflow` owns scope-by-risk judgment; `<canonical verify command>` (or `automated-testing-workflow/scripts/verify.*` with a repo `verify.config`) runs the deterministic gate.
+- Review: `requesting-code-review` for a normal small change; `large-change-review` for broad refactors or changes touching security, persistence, concurrency, or released compatibility.
+
 Do not weaken, skip, or delete tests merely to make a run pass. Ask before changing business expectations, acceptance criteria, compatibility, migrations, authentication, authorization, privacy, credential handling, or irreversible infrastructure.
 
 ## Git and release safety
