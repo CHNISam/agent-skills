@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,7 +42,7 @@ class AuditCatalogTests(unittest.TestCase):
         }
         lines, ok = audit.audit_agent("opencode", entry, self.home)
         self.assertTrue(ok)
-        self.assertTrue(any("no duplicate names" in line for line in lines))
+        self.assertTrue(any("no duplicate identities" in line for line in lines))
 
     def test_identical_content_at_two_managed_roots_is_expected_not_a_problem(self):
         # This is the structurally-unavoidable Claude+Agents overlap every
@@ -173,7 +174,7 @@ class AuditCatalogTests(unittest.TestCase):
         self.assertFalse(ok, "\n".join(lines))
         self.assertTrue(any("PROBLEM" in line and "nested-benchmark" in line for line in lines))
         self.assertEqual(
-            audit.scan_root(self.home, ".codex/skills", recursive=False),
+            audit.scan_root(self.home / ".codex" / "skills", recursive=False),
             {},
             "a one-level (non-recursive) scan of this same fixture must find nothing -- "
             "proving the recursive scan is what catches this, not incidental behavior",
@@ -190,7 +191,7 @@ class AuditCatalogTests(unittest.TestCase):
         }
         lines, ok = audit.audit_agent("claude-code", entry, self.home)
         self.assertTrue(ok)
-        self.assertTrue(any("unique skill names visible: 0" in line for line in lines))
+        self.assertTrue(any("unique skill identities visible: 0" in line for line in lines))
 
     def test_completion_gate_scoped_to_applied_skills_ignores_unrelated_machine_state(self):
         # distribute_skills.py's post-apply gate must fail on a duplicate among the
@@ -386,3 +387,248 @@ class AuditCatalogTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def write_plugin(root: Path, plugin: str, skill: str, body: str = "content") -> Path:
+    """A plugin-shaped install: `<root>/<plugin>/skills/<skill>/SKILL.md` next to a
+    plugin manifest. The runtime keys these as `<plugin>:<skill>`."""
+    plugin_root = root / plugin
+    (plugin_root / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin_root / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": plugin, "version": "1.0.0"}), encoding="utf-8"
+    )
+    write_skill(plugin_root / "skills", skill, body=body)
+    return plugin_root / "skills" / skill
+
+
+CODEX_ENTRY = {
+    "recursive": True,
+    "roots": [
+        {"path": ".agents/skills", "write_root": "agents"},
+        {"path": ".codex/skills", "write_root": None},
+    ],
+    "dedup": "by-path, not by name: a same-name skill present at two roots is shown twice, unmerged",
+}
+
+
+class LogicalIdentityTests(unittest.TestCase):
+    """The invariant is about the identity an agent's catalog actually keys on. That is
+    NOT the bare frontmatter name whenever a skill ships inside a plugin -- verified
+    against the live Codex runtime, see discovery_graph_notes.md."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_plugin_owned_skill_is_namespaced_by_its_plugin(self):
+        skill_dir = write_plugin(self.home / ".agents" / "skills", "superpowers", "brainstorming")
+        self.assertEqual(
+            audit.logical_id(self.home / ".agents" / "skills", skill_dir, "brainstorming"),
+            "superpowers:brainstorming",
+        )
+
+    def test_standalone_skill_keeps_its_bare_name(self):
+        write_skill(self.home / ".agents" / "skills", "brainstorming")
+        skill_dir = self.home / ".agents" / "skills" / "brainstorming"
+        self.assertEqual(
+            audit.logical_id(self.home / ".agents" / "skills", skill_dir, "brainstorming"),
+            "brainstorming",
+        )
+
+    def test_plugin_copy_and_standalone_copy_are_not_duplicates(self):
+        # The false positive a bare-name comparison produces: a plugin's own
+        # `brainstorming` and a standalone `brainstorming` are two distinct catalog
+        # entries (`superpowers:brainstorming` and `brainstorming`), not one skill twice.
+        # Collapsing them would remove a skill the user legitimately has.
+        root = self.home / ".agents" / "skills"
+        write_skill(root, "brainstorming", body="standalone")
+        write_plugin(root, "superpowers", "brainstorming", body="from the pack")
+        lines, ok = audit.audit_agent("codex", CODEX_ENTRY, self.home)
+        self.assertTrue(ok, "\n".join(lines))
+        self.assertTrue(any("no duplicate identities" in line for line in lines))
+
+    def test_same_plugin_installed_under_two_roots_is_a_duplicate(self):
+        # The false negative: both copies resolve to the same namespaced identity, so
+        # this really is one logical skill reachable twice.
+        write_plugin(self.home / ".agents" / "skills", "bencium", "ux-designer")
+        write_plugin(self.home / ".codex" / "skills", "bencium", "ux-designer")
+        lines, ok = audit.audit_agent("codex", CODEX_ENTRY, self.home)
+        self.assertFalse(ok, "\n".join(lines))
+        self.assertTrue(any("bencium:ux-designer" in line for line in lines))
+
+    def test_namespace_is_found_through_a_symlinked_plugin_skills_directory(self):
+        # How superpowers is really installed: only the plugin's inner `skills/`
+        # directory is linked into the discovery root, so the manifest sits above the
+        # link *target* and an unresolved walk would never see it.
+        elsewhere = self.home / "packs"
+        write_plugin(elsewhere, "superpowers", "brainstorming")
+        root = self.home / ".agents" / "skills"
+        root.mkdir(parents=True, exist_ok=True)
+        try:
+            (root / "superpowers").symlink_to(
+                elsewhere / "superpowers" / "skills", target_is_directory=True
+            )
+        except (OSError, NotImplementedError) as exc:  # unprivileged Windows, etc.
+            self.skipTest(f"symlinks unavailable here: {exc}")
+        found = audit.scan_root(root, recursive=True)
+        self.assertIn("superpowers:brainstorming", found)
+
+
+class DuplicateInvariantTests(unittest.TestCase):
+    """The reported failure and its exact recovery: one bundle installed twice under
+    two container names inside a single recursive root."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name)
+        self.source = self.home / "source"
+        self.source.mkdir()
+        self.manifest = {"retired_skills": [], "duplicate_exceptions": []}
+        self.graph = {"codex": CODEX_ENTRY}
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def _audit(self):
+        return audit.full_audit(
+            self.graph, self.home, self.manifest, self.source, project=self.home / "nowhere"
+        )
+
+    def test_one_bundle_installed_twice_fails_with_evidence(self):
+        base = self.home / ".codex" / "skills"
+        write_skill(base / "blender-agent-studio", "blender-agent-benchmark", body="same")
+        write_skill(base / "blender-agent-studio-suite", "blender-agent-benchmark", body="same")
+        lines, status = self._audit()
+        self.assertNotEqual(status, "CLEAN")
+        finding = next(line for line in lines if "blender-agent-benchmark" in line and "paths=" in line)
+        # The evidence the harness must carry: identity, agent, every path, and why.
+        self.assertIn("agent=codex", finding)
+        self.assertIn("identity='blender-agent-benchmark'", finding)
+        self.assertIn("blender-agent-studio-suite", finding)
+        self.assertIn("why=", finding)
+
+    def test_removing_the_duplicate_makes_it_clean_again(self):
+        base = self.home / ".codex" / "skills"
+        write_skill(base / "blender-agent-studio", "blender-agent-benchmark", body="same")
+        write_skill(base / "blender-agent-studio-suite", "blender-agent-benchmark", body="same")
+        self.assertNotEqual(self._audit()[1], "CLEAN")
+        shutil.rmtree(base / "blender-agent-studio")
+        self.assertEqual(self._audit()[1], "CLEAN")
+
+    def test_project_scoped_root_can_collide_with_a_user_root(self):
+        # A repository that vendors a skill also installed globally shows it twice.
+        # Modelling only home-relative roots would miss this entirely.
+        project = self.home / "workspace"
+        graph = {
+            "codex": {
+                "recursive": True,
+                "roots": [
+                    {"path": ".agents/skills", "write_root": "agents"},
+                    {"path": ".agents/skills", "base": "project", "write_root": None},
+                ],
+                "dedup": "by-path, not by name",
+            }
+        }
+        write_skill(self.home / ".agents" / "skills", "context-retrieval")
+        write_skill(project / ".agents" / "skills", "context-retrieval")
+        _lines, status = audit.full_audit(graph, self.home, self.manifest, self.source, project=project)
+        self.assertNotEqual(status, "CLEAN")
+
+    def test_install_gated_roots_are_declared_but_never_walked(self):
+        entry = {
+            "recursive": True,
+            "roots": [{"path": ".codex/plugins/cache", "write_root": None, "install_gated": True}],
+            "dedup": "by-path, not by name",
+        }
+        write_plugin(self.home / ".codex" / "plugins" / "cache", "visualize", "visualize")
+        self.assertEqual(audit.collect_contributions(entry, self.home, self.home), {})
+
+
+class DuplicateExceptionTests(unittest.TestCase):
+    """An exception is the ONLY sanctioned way a duplicate may persist, and it has to be
+    exact: agent, identity, and the full set of contributing paths."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name)
+        self.source = self.home / "source"
+        self.source.mkdir()
+        self.graph = {"codex": CODEX_ENTRY}
+        write_skill(self.home / ".agents" / "skills", "openai-docs", body="ours")
+        write_skill(self.home / ".codex" / "skills", "openai-docs", body="theirs")
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def _audit(self, exceptions):
+        manifest = {"retired_skills": [], "duplicate_exceptions": exceptions}
+        return audit.full_audit(self.graph, self.home, manifest, self.source, project=self.home / "nowhere")
+
+    def exception(self, paths):
+        return {
+            "agent": "codex",
+            "logical_id": "openai-docs",
+            "paths": paths,
+            "reason": "two genuinely different skills that happen to share a name",
+            "reviewed": "2026-09-10",
+        }
+
+    def test_without_an_exception_the_duplicate_fails(self):
+        _lines, status = self._audit([])
+        self.assertNotEqual(status, "CLEAN")
+
+    def test_an_exact_exception_acknowledges_it(self):
+        lines, status = self._audit(
+            [self.exception([".agents/skills/openai-docs", ".codex/skills/openai-docs"])]
+        )
+        self.assertEqual(status, "CLEAN", "\n".join(lines))
+        self.assertTrue(any("ACKNOWLEDGED" in line for line in lines))
+
+    def test_an_exception_listing_the_wrong_paths_does_not_apply(self):
+        # It must not be possible to write a loose exception that silently covers a
+        # duplicate at some other path nobody reviewed.
+        lines, status = self._audit(
+            [self.exception([".agents/skills/openai-docs", ".cursor/skills/openai-docs"])]
+        )
+        self.assertNotEqual(status, "CLEAN", "\n".join(lines))
+
+    def test_a_stale_exception_is_itself_a_problem(self):
+        # Waiver hygiene: once the duplicate is gone the exception must go too, or it
+        # sits there pre-approving a future duplicate nobody looked at.
+        shutil.rmtree(self.home / ".codex" / "skills" / "openai-docs")
+        lines, status = self._audit(
+            [self.exception([".agents/skills/openai-docs", ".codex/skills/openai-docs"])]
+        )
+        self.assertEqual(status, "PROBLEM", "\n".join(lines))
+        self.assertTrue(any("stale exception" in line for line in lines))
+
+
+class RuntimeCatalogParsingTests(unittest.TestCase):
+    """The runtime cross-check is what keeps the static model honest, so its parsing of
+    an agent's own rendered catalog is itself pinned down."""
+
+    BLOCK = (
+        "<skills_instructions>\n"
+        "### Skill roots\n"
+        "- `r0` = `/home/u/.codex/skills`\n"
+        "- `r1` = `/home/u/.agents/skills`\n"
+        "### Available skills\n"
+        "- git-workflow: Branching, commits (file: r1/git-workflow/SKILL.md)\n"
+        "- superpowers:brainstorming: Ideas into designs (file: r1/superpowers/brainstorming/SKILL.md)\n"
+        "</skills_instructions>\n"
+    )
+
+    def test_parses_ids_and_absolute_paths(self):
+        parsed = audit.parse_runtime_catalog(self.BLOCK)
+        self.assertIn(("git-workflow", str(Path("/home/u/.agents/skills/git-workflow"))), parsed)
+
+    def test_keeps_the_namespace_in_a_namespaced_id(self):
+        ids = {identity for identity, _ in audit.parse_runtime_catalog(self.BLOCK)}
+        self.assertIn("superpowers:brainstorming", ids)
+
+    def test_extracts_the_block_from_a_json_prompt_dump(self):
+        payload = json.dumps([{"role": "developer", "content": [{"type": "input_text", "text": self.BLOCK}]}])
+        self.assertEqual(audit.extract_skills_block(payload), self.BLOCK)

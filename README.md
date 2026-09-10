@@ -157,9 +157,28 @@ why they must stay apart:
 # The narrow, scoped gate distribute_skills.py --apply already runs automatically after
 # every SYNC_OK. Binary: only fails on a duplicate among skills THIS repo just applied.
 
-# The full, whole-machine picture -- every agent, every real discovery root, every name:
+# The full, whole-machine picture -- every agent, every real discovery root, every
+# logical skill identity:
 python scripts/audit_catalog.py
+
+# ...and, additionally, ask each agent that can render its own catalog to do so and fail
+# on any drift from the model above. Deterministic and LLM-free; skips agents that are
+# not installed, so it is safe to run anywhere:
+python scripts/audit_catalog.py --runtime
 ```
+
+The invariant it enforces: **a logical skill may be materialized into several
+agent-specific locations, but no single agent's discovery graph may ever expose it more
+than once** unless `skill-profiles.json`'s `duplicate_exceptions` records an explicit,
+reviewed exception naming the agent, the identity, and the exact set of contributing
+paths. An exception that matches nothing is itself a failure, so a waiver cannot outlive
+the duplicate it waives.
+
+"Logical identity" is what the agent's catalog actually keys on, which is *not* the bare
+`name:` frontmatter: a skill shipped inside a plugin enters as `<plugin>:<skill>`. Two
+copies of one plugin therefore are a duplicate, and a plugin's `brainstorming` next to a
+standalone `brainstorming` is not. See `discovery_graph_notes.md`, "Logical identity is
+plugin-namespaced", for the runtime evidence.
 
 `audit_catalog.py`'s full audit ends with `FULL_CATALOG_STATUS: CLEAN|REVIEW_REQUIRED|PROBLEM`
 (exit 0/2/1). `CLEAN` is the only status meaning "nothing unresolved anywhere" — a

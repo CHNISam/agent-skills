@@ -124,6 +124,34 @@ def validate(root: Path) -> list[str]:
                 f"targets has entries no discovery_graph root ever writes through: {orphan_targets}"
             )
 
+    exceptions = manifest.get("duplicate_exceptions", [])
+    if not isinstance(exceptions, list):
+        errors.append("skill-profiles.json: duplicate_exceptions must be a list")
+    else:
+        # A waiver for the one-skill-one-entry invariant is only trustworthy if it is
+        # specific: which agent, which identity, which exact paths, and why. A vague
+        # entry would silently widen into a blanket exemption, which is the failure
+        # mode this whole harness exists to prevent.
+        agents = {a for a in discovery_graph if a != "_comment"} if isinstance(discovery_graph, dict) else set()
+        for index, exception in enumerate(exceptions):
+            label = f"duplicate_exceptions[{index}]"
+            if not isinstance(exception, dict):
+                errors.append(f"{label}: must be an object")
+                continue
+            for field in ("agent", "logical_id", "reason", "reviewed"):
+                if not isinstance(exception.get(field), str) or not exception[field].strip():
+                    errors.append(f"{label}: {field!r} must be a non-empty string")
+            paths = exception.get("paths")
+            if not isinstance(paths, list) or len(paths) < 2:
+                errors.append(f"{label}: 'paths' must list the 2+ contributing paths")
+            elif len(set(paths)) != len(paths):
+                errors.append(f"{label}: 'paths' contains duplicates")
+            if agents and exception.get("agent") not in agents:
+                errors.append(
+                    f"{label}: agent {exception.get('agent')!r} is not a discovery_graph agent "
+                    f"({sorted(agents)})"
+                )
+
     readme = (root / "README.md").read_text(encoding="utf-8") if (root / "README.md").exists() else ""
     for name in sorted(retired):
         if re.search(rf"`{re.escape(name)}`.*\b(core|on-demand)\b", readme, re.I):

@@ -241,3 +241,82 @@ in `skill-profiles.json`) rather than being claimed as verified. Confirming it r
 either a human opening Cursor's own Skills panel (Customize → Skills) and reporting what it
 shows for a name known to exist at both `.claude/skills` and `.agents/skills`, or a future
 session with access to a Cursor CLI product this one does not have.
+
+## Logical identity is plugin-namespaced (runtime-verified, 2026-09-10)
+
+Everything above describes *where* agents look. This section describes *what they key
+on* once they get there, which is the part the audit got wrong for its first few
+revisions and the part the reported duplicate-skill symptom actually turns on.
+
+A skill's catalog identity is **not** simply its `name:` frontmatter. When a skill lives
+inside a plugin — i.e. some ancestor directory carries a plugin manifest
+(`.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`)
+— the runtime keys it as `<plugin name>:<skill name>`. A standalone skill keeps its bare
+name.
+
+### How this was established
+
+`codex debug prompt-input` renders the exact model-visible prompt, including the skills
+block, without calling a model. It is the runtime's own answer to "what is in your
+catalog", and it is what `scripts/audit_catalog.py --runtime` diffs the static model
+against. Probe skills were written into `~/.agents/skills`, the command re-run, and the
+rendered ids read back:
+
+| fixture                                            | rendered id                     |
+| -------------------------------------------------- | ------------------------------- |
+| `zzprobe-top/`                                      | `zzprobe-top`                   |
+| `zzprobe-bundle-a/zzprobe-nested/`                  | `zzprobe-nested`                |
+| `zzprobe-bundle-b/zzprobe-nested/`                  | `zzprobe-nested` (again)        |
+| `zzprobe-bundle-c/zzprobe-top/`                     | `zzprobe-top` (again)           |
+| `zzprobe-plug/` + `.claude-plugin/plugin.json`      | `zzprobe-plug:zzprobe-inplug`   |
+
+Three things fall out of this, all of which the audit now encodes:
+
+1. **A container directory does not namespace anything.** Two sibling bundle directories
+   inside one root, each holding a skill with the same `name:`, produce the *same id
+   twice*. Nothing merges them and nothing warns.
+2. **A plugin manifest does namespace.** Only the manifest — not depth, not scan order,
+   not collision with an existing bare name — introduces the `<plugin>:` prefix.
+3. **There is no name-level deduplication at all.** Order was tested in both directions
+   (`zzprobe-alpha` at top level plus `zzprobe-zbundle/zzprobe-alpha`, and the reverse
+   ordering above); the loser is never suppressed or renamed. Codex's
+   `dedupe_skill_roots_by_path` dedupes *roots*, not skills.
+
+### Why the manifest walk resolves symlinks
+
+`~/.agents/skills/superpowers` is a link to `~/.codex/superpowers/skills` — the plugin's
+*inner* `skills/` directory. The manifest lives at `~/.codex/superpowers/.claude-plugin/`,
+one level above the link target and entirely outside the walked root. Walking unresolved
+paths finds nothing and reports `brainstorming`, colliding falsely with the standalone
+`~/.agents/skills/brainstorming`. `plugin_namespace()` therefore resolves before walking.
+
+Relatedly, `Path.rglob` stopped following symlinks while expanding `**` in Python 3.13;
+`scan_root()` passes `recurse_symlinks=True` because the agents do follow them, and an
+unfollowed link is a blind spot rather than a conservative omission. (On Windows this is
+easy to miss: a *junction*, which is how several packs here are installed, is not a
+symlink to Python and recurses either way.)
+
+## Roots the earlier model missed
+
+Two roots were absent from `discovery_graph` and were found by diffing the model against
+the rendered runtime catalog:
+
+- **`$CODEX_HOME/skills/.system`** — Codex's own built-in skills. Not a separate root in
+  the manifest: `.codex/skills` is scanned recursively, and `.system` is a subdirectory of
+  it, dot-prefix notwithstanding. This is where the `openai-docs` / `skill-creator`
+  collisions with this repo's own copies came from.
+- **`<cwd>/.agents/skills`** (and `<cwd>/.claude/skills` for Claude Code) — the
+  **project-scoped** root. Anchored on the working directory, not the home directory, so
+  the graph gained a `"base": "project"` field and the audit a `--project` argument. This
+  repository's own `.agents/skills/` is exactly this shape, which is how the gap surfaced.
+
+## Install-gated roots
+
+`$CODEX_HOME/plugins/cache` holds plugin-provided skills as
+`<plugin>/<version>/skills/<name>`, but only *installed and enabled* plugins reach the
+catalog, and install state is not a filesystem fact. It is declared in the graph with
+`"install_gated": true`: recorded, never statically walked (a walk would report skills the
+runtime does not show, including phantom duplicates between two cached versions of one
+plugin), and exempted from the runtime diff. `runtime_check()` is deliberately asymmetric
+for the same reason — a runtime entry the model does not know about is a blind spot and
+fails; a modelled entry the runtime does not show is conservative and only warns.

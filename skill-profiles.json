@@ -29,7 +29,8 @@
     "claude-code": {
       "recursive": false,
       "roots": [
-        { "path": ".claude/skills", "write_root": "claude", "scope": "user+project" }
+        { "path": ".claude/skills", "write_root": "claude", "scope": "user" },
+        { "path": ".claude/skills", "base": "project", "write_root": null, "scope": "project", "note": "project-scoped root under the working directory; this repo ships one skill there. Do not write user-profile content here." }
       ],
       "dedup": "single-root; no cross-tool overlap"
     },
@@ -37,7 +38,9 @@
       "recursive": true,
       "roots": [
         { "path": ".agents/skills", "write_root": "agents", "scope": "user+project" },
-        { "path": ".codex/skills", "write_root": null, "scope": "user", "note": "deprecated by Codex itself, kept only for backward compatibility -- do not write here" }
+        { "path": ".codex/skills", "write_root": null, "scope": "user", "note": "deprecated by Codex itself, kept only for backward compatibility -- do not write here. Scanned recursively, so its dot-prefixed `.system/` subtree of Codex's own built-in skills is part of this root, not a separate one." },
+        { "path": ".codex/plugins/cache", "write_root": null, "scope": "user", "install_gated": true, "note": "cache of plugin-provided skills (`<plugin>/<version>/skills/<name>`), which enter the catalog namespaced as `<plugin>:<skill>`. Only *installed and enabled* plugins actually reach the runtime, and install state is not derivable from the filesystem, so this root is expected to over-report -- see `install_gated` handling in audit_catalog.runtime_check(). Codex populates it; do not write here." },
+        { "path": ".agents/skills", "base": "project", "write_root": null, "scope": "project", "note": "project-scoped root under the working directory, scanned in addition to the user roots. A repository that vendors a skill also installed globally therefore shows it twice -- this repo's own .agents/skills is exactly that shape, so the root has to be modelled, not assumed absent." }
       ],
       "dedup": "by-path, not by name: a same-name skill present at two roots (or at two subdirectories within the SAME root) is shown twice, unmerged"
     },
@@ -61,6 +64,8 @@
       "dedup": "undocumented by Cursor; verify empirically in Cursor's Skills UI after distribution"
     }
   },
+  "duplicate_exceptions_comment": "The ONLY sanctioned way one logical skill identity may appear more than once in a single agent's discovery graph. Each entry is an object: {\"agent\": <key in discovery_graph>, \"logical_id\": <the namespaced identity the runtime shows>, \"paths\": [<every contributing path, home-relative, forward slashes>], \"reason\": <why both are wanted>, \"reviewed\": <YYYY-MM-DD>}. `paths` must match the real contributing set EXACTLY -- differ by one path and the exception does not apply, so an exception can never silently widen to cover a duplicate nobody reviewed. An exception matching no current duplicate is itself a PROBLEM. Empty is the correct steady state.",
+  "duplicate_exceptions": [],
   "retired_skills": [
     "5-whys-root-cause-analysis",
     "ai-native-product-spec",

@@ -19,5 +19,12 @@ jobs:
           python-version: "3.11"
       - name: Validate repository structure and skill routing
         run: python scripts/validate_repo.py
-      - name: Test the skill distributor
+      - name: Test the skill distributor and the duplicate-identity invariant
         run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Audit the effective catalog on a clean machine
+        # A runner has no user skill installation, so this asserts the audit runs
+        # end-to-end and reports CLEAN when nothing is installed -- the floor the
+        # invariant has to hold at. Duplicates on a real machine are caught by the
+        # unit tests above and by running this same script locally.
+        run: python scripts/audit_catalog.py --home "$RUNNER_TEMP/empty-home" --project "$RUNNER_TEMP/empty-project"
