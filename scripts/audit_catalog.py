@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 
@@ -178,6 +179,22 @@ def is_direct_placement(root_abs: Path, skill_dir: Path) -> bool:
     return skill_dir.parent == root_abs
 
 
+def canonical_key(skill_dir: Path) -> str:
+    """The identity of the *file content* behind a discovered path.
+
+    Agents share skills on purpose: a root is routinely a symlink or (on Windows) a
+    junction pointing into another agent's root, so one on-disk skill is reachable by
+    several paths. Reading a skill twice through two names for the same directory is one
+    catalog entry, not two, so alias collapse happens before anything counts duplicates.
+    """
+    try:
+        resolved = skill_dir.resolve()
+    except OSError:
+        resolved = skill_dir
+    key = resolved.as_posix()
+    return key.lower() if os.name == "nt" else key
+
+
 class Contribution:
     def __init__(self, root_path: str, write_root: str | None, skill_dir: Path, order: int, root_abs: Path):
         self.root_path = root_path
@@ -186,6 +203,16 @@ class Contribution:
         self.order = order  # deterministic scan-order tiebreak: (root index, path)
         self.root_abs = root_abs
         self.is_direct = is_direct_placement(root_abs, skill_dir)
+        self.canonical = canonical_key(skill_dir)
+        # Other discovered paths that resolve to this same directory. Evidence for a
+        # reader, never additional catalog entries.
+        self.aliases: list[Path] = []
+
+    def describe(self) -> str:
+        if not self.aliases:
+            return f"{self.skill_dir} ({self.write_root or 'unmanaged'})"
+        also = ", ".join(str(a) for a in self.aliases)
+        return f"{self.skill_dir} ({self.write_root or 'unmanaged'}; same directory also reached as {also})"
 
     def __repr__(self) -> str:
         return f"{self.skill_dir}"
@@ -244,11 +271,40 @@ def collect_contributions(entry: dict, home: Path, project: Path | None = None) 
         found = scan_root(root_abs, recursive=entry.get("recursive", False))
         for skill_name, skill_dirs in found.items():
             for skill_dir in sorted(skill_dirs):
-                by_skill.setdefault(skill_name, []).append(
-                    Contribution(root_entry["path"], write_root, skill_dir, order, root_abs)
+                contribution = Contribution(root_entry["path"], write_root, skill_dir, order, root_abs)
+                existing = next(
+                    (c for c in by_skill.get(skill_name, []) if c.canonical == contribution.canonical),
+                    None,
                 )
+                if existing is not None:
+                    # Same directory, reached again through another root. Record the
+                    # alias as evidence; do not count it as a second catalog entry.
+                    existing.aliases.append(skill_dir)
+                    continue
+                by_skill.setdefault(skill_name, []).append(contribution)
                 order += 1
     return by_skill
+
+
+def dedup_kind(entry: dict) -> str:
+    """How the agent itself resolves two skills that share one identity.
+
+    This is the whole difference between "two files exist" and "the user sees the skill
+    twice", and only the second is a defect:
+
+      "by-path" -- the agent does not merge by identity, so every contributing path
+                   becomes its own catalog entry. More than one entry IS the duplicate.
+      "by-name" -- the agent merges by identity itself and surfaces exactly one entry
+                   (last scanned root wins). Several contributions are the normal shape
+                   of deliberate cross-agent reuse and can never be a runtime duplicate.
+    """
+    return entry.get("dedup_kind", "by-path")
+
+
+def exposed_more_than_once(entry: dict, contributions: list[Contribution]) -> bool:
+    """The invariant, stated exactly: does THIS agent expose this one logical skill more
+    than once? Alias-collapsed contributions, judged against the agent's own dedup rule."""
+    return len(contributions) > 1 and dedup_kind(entry) == "by-path"
 
 
 def effective_winner(dedup: str, contributions: list[Contribution]) -> tuple[Contribution | None, str]:
@@ -285,12 +341,20 @@ def audit_agent(name: str, entry: dict, home: Path, project: Path | None = None)
     if not duplicates:
         lines.append("no duplicate identities.")
     for skill_name, contributions in sorted(duplicates.items()):
-        paths = ", ".join(f"{c.skill_dir} ({c.write_root or 'unmanaged'})" for c in contributions)
+        paths = ", ".join(c.describe() for c in contributions)
+        winner, explanation = effective_winner(dedup, contributions)
+        if not exposed_more_than_once(entry, contributions):
+            # The agent merges these itself, so the user sees one entry. Reported for
+            # visibility -- which copy wins is worth knowing -- but not a defect.
+            lines.append(
+                f"  DEDUPED {skill_name!r}: {paths} -- {name} resolves this identity to a "
+                f"single catalog entry ({explanation})"
+            )
+            continue
         all_managed = all(c.write_root is not None for c in contributions)
         digests = {digest_skill_dir(c.skill_dir) for c in contributions}
         identical = len(digests) == 1
         if all_managed and identical:
-            winner, explanation = effective_winner(dedup, contributions)
             lines.append(
                 f"  EXPECTED overlap {skill_name!r}: {paths} -- identical content, "
                 f"unavoidable given this agent's own discovery graph ({explanation})"
@@ -298,7 +362,6 @@ def audit_agent(name: str, entry: dict, home: Path, project: Path | None = None)
         else:
             ok = False
             reason = "content differs across paths" if not identical else "found outside a managed write_root"
-            winner, explanation = effective_winner(dedup, contributions)
             lines.append(f"  PROBLEM {skill_name!r}: {paths} -- {reason} ({explanation})")
 
     lines.append("")
@@ -332,13 +395,15 @@ def managed_gate(discovery_graph: dict, home: Path, retired: set[str], applied_n
         }
         problems = []
         for n, contributions in by_skill.items():
-            if len(contributions) < 2:
+            if not exposed_more_than_once(entry, contributions):
                 continue
             all_managed = all(c.write_root is not None for c in contributions)
             digests = {digest_skill_dir(c.skill_dir) for c in contributions}
             if not (all_managed and len(digests) == 1):
                 problems.append(n)
-        retired_visible = sorted(set(by_skill) & retired)
+        retired_visible = sorted(
+            n for n in set(by_skill) & retired if any(c.is_direct for c in by_skill[n])
+        )
         ok = not problems and not retired_visible
         agent_lines = [f"## {agent_name} (scoped to {sorted(applied_names)})"]
         if problems:
@@ -406,7 +471,14 @@ def match_exception(
     return None
 
 
-STATUS_RANK = {"CLEAN": 0, "EXPECTED": 0, "ACKNOWLEDGED": 0, "REVIEW_REQUIRED": 1, "PROBLEM": 2}
+STATUS_RANK = {
+    "CLEAN": 0,
+    "EXPECTED": 0,
+    "ACKNOWLEDGED": 0,
+    "DEDUPED": 0,
+    "REVIEW_REQUIRED": 1,
+    "PROBLEM": 2,
+}
 
 
 def classify_duplicate(
@@ -474,7 +546,7 @@ def audit_agent_full(
 ) -> tuple[list[str], dict[str, int], set[int]]:
     exceptions = exceptions or []
     lines: list[str] = [f"## {name}"]
-    counts = {"EXPECTED": 0, "ACKNOWLEDGED": 0, "PROBLEM": 0, "REVIEW_REQUIRED": 0}
+    counts = {"EXPECTED": 0, "ACKNOWLEDGED": 0, "DEDUPED": 0, "PROBLEM": 0, "REVIEW_REQUIRED": 0}
     used_exceptions: set[int] = set()
     by_skill = collect_contributions(entry, home, project)
 
@@ -484,8 +556,18 @@ def audit_agent_full(
     if not duplicates:
         lines.append("no duplicate identities.")
     for skill_name, contributions in sorted(duplicates.items()):
-        paths = ", ".join(f"{c.skill_dir} ({c.write_root or 'unmanaged'})" for c in contributions)
+        paths = ", ".join(c.describe() for c in contributions)
         _, explanation = effective_winner(dedup, contributions)
+        if not exposed_more_than_once(entry, contributions):
+            # Several contributions, one catalog entry: the agent dedupes by identity, so
+            # this is cross-agent reuse working as intended, not a duplicate. Recorded so
+            # a reader can still see every contributing path and which one wins.
+            counts["DEDUPED"] += 1
+            lines.append(
+                f"  DEDUPED {skill_name!r}: {paths} -- {name} exposes this identity once "
+                f"({explanation})"
+            )
+            continue
         exception = match_exception(name, skill_name, contributions, home, exceptions)
         if exception is not None:
             used_exceptions.add(id(exception))
@@ -511,11 +593,12 @@ def audit_agent_full(
             counts["PROBLEM"] += 1
             lines.append(f"  PROBLEM: retired skill {skill_name!r} still directly placed at {contribution.skill_dir}")
         else:
-            counts["REVIEW_REQUIRED"] += 1
+            # Not this repo's placement shape, so not this repo's copy: a third-party
+            # pack shipping its own skill that happens to share a retired name. Naming
+            # collision, not a leftover, and nothing here is wrong -- note it and move on.
             lines.append(
-                f"  REVIEW_REQUIRED: retired name {skill_name!r} found nested (not this repo's own "
-                f"placement shape) at {contribution.skill_dir} -- likely a third-party plugin whose "
-                f"own skill happens to share this name; not auto-deleted"
+                f"  NOTE: retired name {skill_name!r} is also used by a third-party skill at "
+                f"{contribution.skill_dir}; that is not this repo's placement and not a finding"
             )
 
     lines.append("")
@@ -556,7 +639,7 @@ def full_audit(discovery_graph: dict, home: Path, manifest: dict, source: Path, 
         # ACKNOWLEDGED ones (an explicit, path-exact, validated exception) never move
         # the needle. Only PROBLEM and REVIEW_REQUIRED count toward a non-clean status.
         agent_status = max(
-            (s for s, n in counts.items() if n > 0 and s not in ("EXPECTED", "ACKNOWLEDGED")),
+            (s for s, n in counts.items() if n > 0 and s not in ("EXPECTED", "ACKNOWLEDGED", "DEDUPED")),
             key=lambda s: STATUS_RANK[s],
             default="CLEAN",
         )

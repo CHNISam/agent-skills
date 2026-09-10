@@ -320,3 +320,68 @@ runtime does not show, including phantom duplicates between two cached versions 
 plugin), and exempted from the runtime diff. `runtime_check()` is deliberately asymmetric
 for the same reason — a runtime entry the model does not know about is a blind spot and
 fails; a modelled entry the runtime does not show is conservative and only warns.
+
+## What counts as a duplicate: the agent's own dedup rule decides
+
+The identity rules above answer *what* a skill is called. They do not answer whether two
+of them are a defect, and getting that second question wrong is what made Cursor and
+OpenCode report `REVIEW_REQUIRED` while their real Skills UIs showed nothing wrong.
+
+The invariant is about what a user sees:
+
+> A duplicate is a failure only when the SAME agent effectively exposes the SAME logical
+> skill more than once.
+
+Two things stand between "several paths on disk" and "several entries in the picker", and
+the audit now models both.
+
+### 1. Path aliases are not copies
+
+Sharing skills across agents is normal and supported: a root is routinely a symlink or,
+on Windows, a **junction** into another agent's root. On this machine:
+
+```
+~/.cursor/skills/blender-agent-studio-suite -> ~/.codex/skills/blender-agent-studio-suite
+~/.cursor/skills/blender-production-suite    -> ~/.codex/skills/blender-production-suite
+~/.agents/skills/superpowers                 -> ~/.codex/superpowers/skills
+```
+
+Cursor scans `.codex/skills` *and* `.cursor/skills`, so it walked into the same directory
+twice and the audit counted two contributions — 26 findings that were one directory each.
+`canonical_key()` resolves before comparing, and `collect_contributions()` keeps only the
+first contribution per canonical directory, recording the other routes on `.aliases` so
+the report still shows both. (Junctions matter here: Python's `is_symlink()` returns False
+for one, so only `resolve()` reveals the aliasing.)
+
+### 2. Some agents deduplicate; some do not
+
+`dedup_kind` on each agent is the load-bearing field:
+
+| kind      | agent behaviour                                    | verdict for N>1 contributions |
+| --------- | -------------------------------------------------- | ----------------------------- |
+| `by-path` | every contributing path becomes its own entry       | duplicate — this is the defect |
+| `by-name` | agent merges the identity, last scanned root wins   | one entry — `DEDUPED`, not a defect |
+
+Codex is `by-path`: verified against `codex debug prompt-input`, where two sibling bundles
+really do render the same id twice. Claude Code is `by-path` too, though its single
+non-recursive root makes a collision hard to construct.
+
+OpenCode is `by-name` from its own documented rule (last-scan-wins, warns on collision).
+Cursor documents nothing, so it was verified empirically in Cursor's Skills UI (2026-09-10)
+with `.claude/skills`, `.agents/skills` and `.cursor/skills` all populated — including
+identities reachable from three roots at once. Every identity appeared exactly once.
+
+For a `by-name` agent, several contributions are the *intended* shape of cross-agent reuse
+and can never be a runtime duplicate — including when the copies differ, since
+last-scan-wins still yields exactly one entry. The report says which copy wins.
+
+`dedup_kind` deliberately has no permissive default: `dedup_kind()` falls back to
+`by-path`, and `validate_repo.py` rejects an agent that omits it, so an unverified guess
+can never silence a real duplicate.
+
+### Retired names inside third-party packs
+
+A retired name found *nested* (not at this repo's own `<root>/<name>/` placement shape) is
+a third-party pack shipping its own skill that happens to share the name. Nothing is wrong
+and there is nothing to fix, so it is a `NOTE`, not a status. A retired name placed
+directly is still this repo's leftover and still a `PROBLEM`.

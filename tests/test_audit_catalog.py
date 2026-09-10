@@ -297,7 +297,7 @@ class AuditCatalogTests(unittest.TestCase):
         self.assertTrue((self.home / ".cursor" / "skills" / "unknown-third-party-pack").exists())
         self.assertTrue(any("REVIEW_REQUIRED" in line and "unknown-third-party-pack" in line for line in lines))
 
-    def test_retired_name_nested_in_a_third_party_plugin_is_review_required_not_problem(self):
+    def test_retired_name_nested_in_a_third_party_plugin_is_not_a_finding(self):
         # Real bug found on a real machine: some of this repo's own now-retired
         # skills were themselves verbatim copies of an upstream source (see NOTICE),
         # so a raw, unmodified install of that upstream plugin can be byte-identical
@@ -305,7 +305,8 @@ class AuditCatalogTests(unittest.TestCase):
         # leftover at all. This repo's own distributor never writes deeper than
         # `<root>/<name>/SKILL.md`; a retired name found nested inside a container
         # (`<root>/superpowers/<name>/SKILL.md`) was not placed by this repo's
-        # tooling and must not be reported (or auto-fixed) as a PROBLEM.
+        # tooling, so it is a name collision with somebody else's skill and nothing
+        # about it is wrong. It gets a NOTE, never a status.
         write_skill(self.home / ".claude" / "skills" / "superpowers", "using-superpowers")
         source = self.home / "source"
         source.mkdir()
@@ -329,8 +330,8 @@ class AuditCatalogTests(unittest.TestCase):
         )
         manifest = json.loads((source / "skill-profiles.json").read_text())
         lines, status = audit.full_audit(manifest["discovery_graph"], self.home, manifest, source)
-        self.assertEqual(status, "REVIEW_REQUIRED", "\n".join(lines))
-        self.assertTrue(any("REVIEW_REQUIRED" in l and "using-superpowers" in l for l in lines))
+        self.assertEqual(status, "CLEAN", "\n".join(lines))
+        self.assertTrue(any(l.strip().startswith("NOTE:") and "using-superpowers" in l for l in lines))
         self.assertFalse(any(l.strip().startswith("PROBLEM") and "using-superpowers" in l for l in lines))
         # And a directly-placed retired copy (this repo's own actual placement shape)
         # in the SAME fixture is still a real PROBLEM, not swept into REVIEW_REQUIRED.
@@ -632,3 +633,147 @@ class RuntimeCatalogParsingTests(unittest.TestCase):
     def test_extracts_the_block_from_a_json_prompt_dump(self):
         payload = json.dumps([{"role": "developer", "content": [{"type": "input_text", "text": self.BLOCK}]}])
         self.assertEqual(audit.extract_skills_block(payload), self.BLOCK)
+
+
+BY_PATH_ENTRY = {
+    "recursive": True,
+    "dedup_kind": "by-path",
+    "roots": [
+        {"path": ".agents/skills", "write_root": "agents"},
+        {"path": ".codex/skills", "write_root": None},
+    ],
+    "dedup": "by-path, not by name: shown twice, unmerged",
+}
+
+BY_NAME_ENTRY = {
+    "recursive": True,
+    "dedup_kind": "by-name",
+    "roots": [
+        {"path": ".claude/skills", "write_root": "claude"},
+        {"path": ".agents/skills", "write_root": "agents"},
+        {"path": ".cursor/skills", "write_root": None},
+    ],
+    "dedup": "by name, last-scan-wins, logs a warning on collision",
+}
+
+
+class DedupSemanticsTests(unittest.TestCase):
+    """"Two files exist" and "the user sees the skill twice" are different claims. Only
+    the second is a defect, and which one a given set of paths amounts to is decided by
+    the agent's own dedup rule, not by the filesystem."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name)
+        self.source = self.home / "source"
+        self.source.mkdir()
+        self.manifest = {"retired_skills": [], "duplicate_exceptions": []}
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def _audit(self, graph):
+        return audit.full_audit(
+            graph, self.home, self.manifest, self.source, project=self.home / "nowhere"
+        )
+
+    def test_by_name_agent_reading_two_populated_shared_roots_is_clean(self):
+        # The false positive this test exists for: an agent that merges by identity
+        # reads several roots this repo deliberately populates. Cross-agent reuse is
+        # the intended design, and the user sees one entry.
+        write_skill(self.home / ".claude" / "skills", "git-workflow", body="X")
+        write_skill(self.home / ".agents" / "skills", "git-workflow", body="X")
+        lines, status = self._audit({"opencode": BY_NAME_ENTRY})
+        self.assertEqual(status, "CLEAN", "\n".join(lines))
+        self.assertTrue(any("DEDUPED" in line and "git-workflow" in line for line in lines))
+
+    def test_by_name_agent_is_clean_even_when_the_copies_differ(self):
+        # Divergent content under last-scan-wins is a question of WHICH copy is live,
+        # not of how many entries exist. The catalog still shows exactly one.
+        write_skill(self.home / ".claude" / "skills", "git-workflow", body="old")
+        write_skill(self.home / ".agents" / "skills", "git-workflow", body="new")
+        write_skill(self.home / ".cursor" / "skills", "git-workflow", body="third")
+        lines, status = self._audit({"opencode": BY_NAME_ENTRY})
+        self.assertEqual(status, "CLEAN", "\n".join(lines))
+
+    def test_the_same_fixture_is_a_real_duplicate_on_a_by_path_agent(self):
+        # Detection is not weakened, it is made specific: identical paths, opposite
+        # verdict, decided purely by what the agent does with them.
+        write_skill(self.home / ".agents" / "skills", "git-workflow", body="X")
+        write_skill(self.home / ".codex" / "skills", "git-workflow", body="X")
+        _lines, by_path = self._audit({"codex": BY_PATH_ENTRY})
+        self.assertNotEqual(by_path, "CLEAN")
+        _lines, by_name = self._audit({"opencode": dict(BY_PATH_ENTRY, dedup_kind="by-name")})
+        self.assertEqual(by_name, "CLEAN")
+
+    def test_dedup_kind_defaults_to_the_strict_reading(self):
+        # An agent whose rule nobody has established must be treated as the kind that
+        # can actually show duplicates, so an unverified claim never silences one.
+        self.assertEqual(audit.dedup_kind({}), "by-path")
+
+
+class AliasCollapseTests(unittest.TestCase):
+    """Shared roots are routinely wired up by linking one agent's directory into
+    another's. Reading one directory through two names is one skill, not two."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name)
+        self.source = self.home / "source"
+        self.source.mkdir()
+        self.manifest = {"retired_skills": [], "duplicate_exceptions": []}
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def _link(self, link: Path, target: Path):
+        link.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            link.symlink_to(target, target_is_directory=True)
+        except (OSError, NotImplementedError) as exc:  # unprivileged Windows, etc.
+            self.skipTest(f"symlinks unavailable here: {exc}")
+
+    def test_one_directory_reached_through_two_roots_is_one_contribution(self):
+        write_skill(self.home / ".codex" / "skills", "blender-scene-design")
+        self._link(self.home / ".cursor" / "skills" / "blender-scene-design",
+                   self.home / ".codex" / "skills" / "blender-scene-design")
+        entry = {
+            "recursive": True,
+            "dedup_kind": "by-path",
+            "roots": [
+                {"path": ".codex/skills", "write_root": None},
+                {"path": ".cursor/skills", "write_root": None},
+            ],
+            "dedup": "by-path, not by name",
+        }
+        contributions = audit.collect_contributions(entry, self.home, self.home)["blender-scene-design"]
+        self.assertEqual(len(contributions), 1)
+        # The alias is kept as evidence, so a reader still sees both routes.
+        self.assertEqual(len(contributions[0].aliases), 1)
+        self.assertIn("same directory also reached as", contributions[0].describe())
+
+    def test_an_alias_is_clean_on_a_by_path_agent_but_a_real_second_copy_is_not(self):
+        # The distinction that matters: a link and a copy look alike on a path listing
+        # and are opposites in the catalog.
+        write_skill(self.home / ".codex" / "skills", "blender-scene-design")
+        self._link(self.home / ".cursor" / "skills" / "blender-scene-design",
+                   self.home / ".codex" / "skills" / "blender-scene-design")
+        entry = {
+            "recursive": True,
+            "dedup_kind": "by-path",
+            "roots": [
+                {"path": ".codex/skills", "write_root": None},
+                {"path": ".cursor/skills", "write_root": None},
+            ],
+            "dedup": "by-path, not by name",
+        }
+        _lines, status = audit.full_audit(
+            {"cursor": entry}, self.home, self.manifest, self.source, project=self.home / "nowhere"
+        )
+        self.assertEqual(status, "CLEAN")
+
+        write_skill(self.home / ".codex" / "skills" / "second-pack", "blender-scene-design")
+        _lines, status = audit.full_audit(
+            {"cursor": entry}, self.home, self.manifest, self.source, project=self.home / "nowhere"
+        )
+        self.assertNotEqual(status, "CLEAN")

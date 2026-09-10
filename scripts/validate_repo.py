@@ -104,6 +104,15 @@ def validate(root: Path) -> list[str]:
         for agent, entry in discovery_graph.items():
             if agent == "_comment":
                 continue
+            kind = entry.get("dedup_kind") if isinstance(entry, dict) else None
+            if kind not in ("by-path", "by-name"):
+                # The invariant is decided by this field, so it may never be left to a
+                # default: an agent silently assumed to be "by-path" would report its
+                # ordinary shared-root reuse as duplication.
+                errors.append(
+                    f"discovery_graph[{agent!r}]: dedup_kind must be 'by-path' or 'by-name' "
+                    f"(what the agent really does), got {kind!r}"
+                )
             roots = entry.get("roots") if isinstance(entry, dict) else None
             if not isinstance(roots, list) or not roots:
                 errors.append(f"discovery_graph[{agent!r}]: roots must be a non-empty list")

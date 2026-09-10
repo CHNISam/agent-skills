@@ -168,8 +168,7 @@ python scripts/audit_catalog.py --runtime
 ```
 
 The invariant it enforces: **a logical skill may be materialized into several
-agent-specific locations, but no single agent's discovery graph may ever expose it more
-than once** unless `skill-profiles.json`'s `duplicate_exceptions` records an explicit,
+agent-specific locations, but no single agent may ever *expose* it more than once** unless `skill-profiles.json`'s `duplicate_exceptions` records an explicit,
 reviewed exception naming the agent, the identity, and the exact set of contributing
 paths. An exception that matches nothing is itself a failure, so a waiver cannot outlive
 the duplicate it waives.
@@ -179,6 +178,15 @@ the duplicate it waives.
 copies of one plugin therefore are a duplicate, and a plugin's `brainstorming` next to a
 standalone `brainstorming` is not. See `discovery_graph_notes.md`, "Logical identity is
 plugin-namespaced", for the runtime evidence.
+
+"Expose" is equally literal, and two things separate paths on disk from entries in a
+picker. Paths that resolve to the same directory -- the symlinks and Windows junctions
+that make cross-agent sharing work -- are one skill reached twice, not two skills. And an
+agent that deduplicates by identity (`dedup_kind: "by-name"`, e.g. OpenCode and Cursor)
+shows exactly one entry no matter how many roots contribute, so reuse across shared roots
+is `DEDUPED`, never a defect; only a `by-path` agent such as Codex turns a second path
+into a second entry. `dedup_kind` has no permissive default and `validate_repo.py`
+requires it, so an unverified guess cannot silence a real duplicate.
 
 `audit_catalog.py`'s full audit ends with `FULL_CATALOG_STATUS: CLEAN|REVIEW_REQUIRED|PROBLEM`
 (exit 0/2/1). `CLEAN` is the only status meaning "nothing unresolved anywhere" — a
