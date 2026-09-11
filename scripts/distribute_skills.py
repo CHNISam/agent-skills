@@ -227,7 +227,7 @@ def apply_target(
                 shutil.rmtree(destination)
             saved = backup / f"pruned-{name}"
             if saved.exists():
-                os.replace(saved, destination)
+                os.replace(saved / f"pruned-{name}", destination)
         raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
@@ -242,7 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--target",
         action="append",
-        help="agents, codex, claude, cursor, opencode, or all; repeatable",
+        help="agents, codex, claude, cursor, opencode, antigravity, or all; repeatable",
     )
     parser.add_argument("--apply", action="store_true", help="perform the planned writes")
     parser.add_argument(
