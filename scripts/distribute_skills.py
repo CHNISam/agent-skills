@@ -227,7 +227,7 @@ def apply_target(
                 shutil.rmtree(destination)
             saved = backup / f"pruned-{name}"
             if saved.exists():
-                os.replace(saved / f"pruned-{name}", destination)
+                os.replace(saved, destination)
         raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
