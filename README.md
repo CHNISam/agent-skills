@@ -1,7 +1,8 @@
 # agent-skills
 
 A cross-project, versioned library of [Agent Skills](https://github.com/agentskills/agentskills)
-plus the tooling that distributes them safely to Codex, Claude Code, Cursor, and OpenCode.
+plus the tooling that distributes them safely to Codex, Claude Code, Cursor, OpenCode,
+and Google Antigravity CLI.
 
 It is a shared toolbox, not a harness for the projects that use it. Every project owns its
 own agent guidance, architecture, tests, CI, and runtime rules; nothing here requires a
@@ -23,8 +24,9 @@ project to adopt a particular operating doctrine.
   real stack and live in the project repository.
 - A global operating contract that projects must follow.
 - Per-project or per-machine configuration. Installed copies under `~/.agents/skills`,
-  `~/.codex/skills`, `~/.claude/skills`, `~/.cursor/skills`, and
-  `~/.config/opencode/skills` are generated; this Git worktree is the source of truth.
+  `~/.codex/skills`, `~/.claude/skills`, `~/.cursor/skills`,
+  `~/.config/opencode/skills`, and `~/.gemini/antigravity-cli/skills` are generated;
+  this Git worktree is the source of truth.
 
 ## Install or refresh
 
@@ -40,7 +42,8 @@ python scripts/distribute_skills.py --profile core --target all --apply --prune
 ```
 
 `skill-profiles.json` defines the `core`, `authoring`, and `all` profiles and the target
-directory for each agent. The distributor records ownership in each target's
+directory for each agent. The Antigravity CLI target uses its official global skill root,
+`~/.gemini/antigravity-cli/skills`. The distributor records ownership in each target's
 `.skills-managed.json`, replaces or prunes only skills it manages, refuses
 unmanaged same-name collisions unless `--adopt-existing` is passed, stages copies
 atomically, verifies digests afterwards, rolls back on failure, and leaves unrelated
