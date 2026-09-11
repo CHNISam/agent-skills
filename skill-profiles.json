@@ -31,7 +31,8 @@
     "codex": ".codex/skills",
     "claude": ".claude/skills",
     "cursor": ".cursor/skills",
-    "opencode": ".config/opencode/skills"
+    "opencode": ".config/opencode/skills",
+    "antigravity": ".gemini/antigravity-cli/skills"
   },
   "retired_skills": [
     "5-whys-root-cause-analysis",
