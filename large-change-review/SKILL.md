@@ -1,65 +1,58 @@
 ---
 name: large-change-review
-description: Produce a whole-diff walkthrough and risk assessment for broad, high-risk, architectural, compatibility-sensitive, or hard-to-understand completed changes. Use when asked for a walkthrough/final review or when the diff crosses important boundaries; ordinary localized changes need only normal verification and a concise diff review.
+description: Review a completed change as a whole when semantic or architectural risk can escape ordinary tests. Use for broad cross-cutting changes, materially high-risk boundary changes, or an explicitly requested final walkthrough. Route by semantic impact, not file labels or line count; a localized change does not become high-risk merely because it touches persistence, concurrency, or another sensitive area.
 ---
 
 # Large Change Review
 
-Verification remains the quality gate. This skill lowers the cost of understanding and
-handing off a broad change; it does not substitute a reviewer for tests.
+Complement automated verification with one question:
 
-## Tier by semantic impact
+> Does the complete delivered change still fit the intended system model and risk boundary?
 
-| Tier | Boundary | Review |
-|---|---|---|
-| Lightweight | Formatting, comments, spelling, mechanical rename; no behavior, config, test expectation, or contract change. | Complete-diff self-check; no artifact. |
-| Ordinary | Local behavior or multi-file change within existing contracts. | Walkthrough and `review-pack.md` when breadth makes handoff useful. |
-| High-risk | Security/auth, credentials, sensitive data, persistence/migration, concurrency/lifecycle, public protocol/API, released compatibility, or confirmed P0/P1. | Full walkthrough, broad verification, explicit residual risk. Independent review only when requested or when material risk cannot be mechanically exercised. |
+This skill is not a substitute for tests and does not require a review artifact by default.
 
-Line count does not lower risk. Test deletion, changed expectations, and CI/build changes
-are never Lightweight.
+## Route by semantic impact
 
-## Establish the baseline
+Use this skill when at least one of these is true:
 
-Recover the original task and acceptance criteria. Compute the merge base with the target
-branch and review the complete `<merge-base>...HEAD` diff plus task-owned staged,
-unstaged, and untracked changes. Check a released tag separately when downstream
-compatibility requires it.
+- the diff crosses multiple responsibilities or changes architecture, authority, ownership, or lifecycle semantics;
+- persistence/migration, concurrency, security/trust, public protocol/API, released compatibility, or another sensitive boundary is **materially changed**;
+- a confirmed P0/P1 or similarly consequential change leaves judgment-heavy residual risk;
+- the user or repository policy explicitly requires a whole-change review.
 
-## Canonical deliverable
+Do **not** invoke it solely because a touched file belongs to a sensitive subsystem. A localized change inside an established contract can use normal verification plus a complete-diff self-check when that is sufficient.
 
-For Ordinary/High-risk work, produce exactly one `review-pack.md` outside the shipped
-deliverable unless repository policy requires it in-tree. Reference canonical files and
-the diff; do not paste source or restate Skill bodies.
+Repository policy may deliberately set a stricter gate.
 
-1. Tier and one-line reason.
-2. Task and acceptance criteria.
-3. Target, merge-base SHA, and exact reviewed range/state.
-4. Change summary and why this shape was chosen.
-5. Architecture/control-flow/data-ownership changes, or “none.”
-6. Important files and what each now owns.
-7. Narrated walkthrough of the complete diff, grouped by responsibility and tied to the
-   acceptance criteria.
-8. Exact verification commands and actual pass/fail/skip results; what was not run.
-9. Regression, compatibility, migration, rollout, and rollback risk as applicable.
-10. Unresolved findings, accepted risk, deferred work, and review revision count.
+## Establish the review boundary
 
-Actively look for unrelated changes, duplicated mechanisms, boundary violations, stale
-or dead code, silently removed behavior, weak regression coverage, and unnecessary
-complexity. A passing suite is meaningful only if it would fail when the requirement is
-broken.
+Recover the task and acceptance criteria. Determine the intended target branch and merge base, then inspect the complete `<merge-base>...HEAD` task diff plus task-owned staged, unstaged, and untracked changes.
 
-## Optional independent review
+Review the delivered state, not only the last fix or latest commit.
 
-Use a fresh-context read-only reviewer when the user asks, repository policy requires it,
-or judgment-heavy residual risk remains after tests and runtime evidence. Give it the
-review pack, exact diff, and named architecture sources—not the implementer's suspected
-findings. Require inspected scope, actionable findings, and uncertainty; a bare “looks
-good” is not a review.
+## Review what tests may miss
 
-Validate findings, fix them in a coherent batch, and rerun affected verification. Do not
-spawn reviewers by default for an ordinary change, and do not block mechanically proven
-work merely because an independent reviewer is unavailable unless project policy says so.
+Inspect only risk that can materially change the completion judgment:
 
-Finalize the pack only after `automated-testing-workflow` has verified the delivered
-state. The chat handoff can remain brief and link to the pack.
+1. **Purpose and scope** — does the complete diff still implement the intended task without unrelated change?
+2. **Architecture and authority** — did ownership, source of truth, control flow, lifecycle, or dependency boundaries drift?
+3. **Compatibility and recovery** — when applicable, are migration, old data, version skew, retry, rollback, and interrupted execution handled?
+4. **Change quality** — look for duplicated mechanisms, stale/dead code, silently removed behavior, boundary violations, and unnecessary complexity.
+5. **Verification sufficiency** — do the executed checks actually falsify the important contracts and failure modes?
+6. **Residual risk** — state only unresolved uncertainty capable of changing acceptance, rollout, or follow-up.
+
+For high-risk boundary-specific prompts, read `references/high-risk.md`.
+
+## Evidence and independent review
+
+Verification remains the completion gate. Record exact commands and actual pass/fail/skip results in the normal task handoff.
+
+Use a fresh-context read-only reviewer only when repository policy requires one, the user asks for one, or material judgment-heavy risk remains that cannot be exercised mechanically. A bare approval is not evidence; require inspected scope, concrete findings, and remaining uncertainty.
+
+Do not create `review-pack.md` or another durable artifact merely because this skill ran. Create a concise durable review note only when repository policy, auditability, or handoff cost justifies one.
+
+## Completion
+
+Review evidence applies to the content that was actually reviewed. Re-review affected boundaries when executable behavior, contracts, dependencies, or architecture change after review; formatting/comment-only deltas may retain prior evidence after a self-check.
+
+Finish when the complete change is verified, semantically coherent for its risk boundary, and any material residual risk is explicit.

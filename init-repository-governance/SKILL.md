@@ -62,8 +62,11 @@ add, a real mechanism behind it; drop it rather than writing an unenforced rule.
    evidence.
 4. **Test quality:** encode critical observable contracts and previously escaped bugs.
    Prefer tests/checks/CI over prose. Do not rely on coverage percentage alone.
-5. **Review:** route broad/high-risk diffs to `large-change-review` and its one
-   `review-pack.md`; independent review is optional unless repository policy requires it.
+5. **Review:** route to `large-change-review` only when semantic impact warrants a
+   whole-change review (for example broad cross-cutting or materially high-risk changes).
+   Do not require a review artifact by default; add one only when project audit/handoff
+   needs justify it. Independent review is optional unless project policy or residual risk
+   requires it.
 6. **Self-improvement:** route rejected outcomes and repeated failures to
    `preventing-repeat-failures`, keeping project-specific protections in the project.
 7. **Source of truth:** state what the repository owns and what external product/roadmap

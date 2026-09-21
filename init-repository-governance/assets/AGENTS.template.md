@@ -32,8 +32,10 @@ silently replace them.
   requirements; a passing test must be capable of failing when required behavior breaks.
 - Bug fixes add regression protection where practical. Do not delete, skip, or weaken tests
   to get green; confirm before changing a business expectation.
-- Broad/high-risk changes use `large-change-review` and one `review-pack.md`. Independent
-  review is optional unless project policy says otherwise; fresh verification is required.
+- Use `large-change-review` when semantic impact warrants a whole-change review, such as
+  a broad cross-cutting or materially high-risk change. Do not require a separate review
+  artifact unless this repository has an explicit audit/handoff need; fresh verification
+  is still required.
 - Explicit dissatisfaction, escaped regressions, and repeated failures use
   `preventing-repeat-failures`: prefer test/check/CI, then a project rule, and promote to a
   shared Skill only when genuinely cross-project.

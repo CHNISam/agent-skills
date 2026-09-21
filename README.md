@@ -61,7 +61,7 @@ personal skills untouched.
 | `git-workflow` | Git conventions and history safety |
 | `git-branch-experiment-management` | experiment lifecycle and concurrent-writer isolation |
 | `init-repository-governance` | help a project write its own agent guidance and gates |
-| `large-change-review` | whole-diff walkthrough and canonical review pack |
+| `large-change-review` | semantic whole-diff review for broad or materially high-risk changes |
 | `preventing-repeat-failures` | route a failure to the smallest durable protection, at the right scope |
 | `systematic-debugging` | evidence → falsifiable hypothesis → smallest experiment → root fix |
 
