@@ -126,6 +126,10 @@ search_projects { organizationId, perPage } → 返回项目列表
 - `search_workitems` 返回的 `description` 是空串，**读详情要用 `get_work_item`**。
 - `create_version` / `update_version` **不暴露 status 字段** —— 版本「已发布 / 归档」只能在云效 UI 操作，不要试图用 API 伪造。
 - 没有创建标签（label）的 API。需要保留 P0–P3 之类语义时，写进描述首行，不要假设能建 label。
+- 清除迭代关联用 `updateWorkItemFields.sprint = ""`（空串有效）。
+- **遗留 Version 关联无法通过 MCP 移除**：`versions: []` 报 `does not contains field : ["versions"]`，`versions: null` 被 schema 拒（`expected array`）。遇到时保持原状并在报告里说明，不要用删除工作项的方式绕。
+- 迭代（sprint）描述**上限 100 字符**，中文按字数计。写 Release Cycle 语义说明时要压缩，超长直接 400。
+- `update_sprint` 可安全重命名迭代（含名称、日期、描述），迁移 Iteration 语义时优先改名而不是新建 + 搬迁工作项。
 
 ## 9. 已验证的服务端事实（避免重复探索）
 
