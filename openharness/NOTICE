@@ -1,5 +1,5 @@
-Source: https://github.com/CHNISam/OpenHarness/tree/a8bbfcf18105742ad2d6a8df3303abf09a9b17d2/skills/openharness
-Source commit: a8bbfcf18105742ad2d6a8df3303abf09a9b17d2
+Source: https://github.com/CHNISam/OpenHarness/tree/44c0d97199a6527bd066bc53f3e7d24d62efcb0f/skills/openharness
+Source commit: 44c0d97199a6527bd066bc53f3e7d24d62efcb0f
 License: MIT (see LICENSE.txt)
 
 This is a distribution copy of the OpenHarness agent skill. OpenHarness mechanisms and project-local authority remain in their respective repositories.
