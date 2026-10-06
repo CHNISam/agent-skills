@@ -65,8 +65,10 @@ personal skills untouched.
 | `preventing-repeat-failures` | route a failure to the smallest durable protection, at the right scope |
 | `systematic-debugging` | evidence → falsifiable hypothesis → smallest experiment → root fix |
 
-`authoring` adds `skill-creator`. `all` exposes the entire library, including domain,
-vendor, and format skills; use it deliberately.
+`authoring` adds `skill-creator`. `windows-host-operations` is an explicit opt-in
+profile for the stable `claude-code-multi-account` skill and the experimental
+`runner-operations` skill; read each skill's status before use. `all` exposes the entire
+library, including domain, vendor, and format skills; use it deliberately.
 
 Everything outside a profile is still available on demand — `brainstorming`,
 `test-driven-development`, the document/format skills, and the domain skills load when

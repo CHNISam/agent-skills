@@ -24,6 +24,10 @@
       "systematic-debugging",
       "skill-creator"
     ],
+    "windows-host-operations": [
+      "claude-code-multi-account",
+      "runner-operations"
+    ],
     "all": "*"
   },
   "targets": {
