@@ -1,6 +1,6 @@
 ---
 name: coding-agent-environment
-description: Maintain a consistent local coding-agent baseline across Codex, Claude Code, OpenCode, and Cursor: native file access, code search, diagnostics/LSP where supported, documentation access, and shared skills. Use for a new machine, a new coding agent, environment audits, or cross-agent capability drift; not for project dependencies or business features.
+description: Maintain a consistent local coding-agent baseline across Codex, Claude Code, OpenCode, and Cursor, including supported Windows Claude Code multi-account isolation. Use for a new machine, agent-environment audits, Claude Code account-entry setup, or cross-agent capability drift; not for project dependencies or business features.
 ---
 
 # Coding Agent Environment
@@ -39,3 +39,37 @@ and discovery of one core skill. Record material environment changes in `update-
 
 Agent/editor support changes over time. Prefer current official documentation and an
 actual smoke test over claims in this skill.
+
+## Claude Code 多账号（Windows）
+
+For terminal Claude Code accounts, use Anthropic's documented `CLAUDE_CONFIG_DIR`
+mechanism rather than copying credentials or persisting API/OAuth tokens. Keep the
+original `claude` entry untouched; create a separate process-scoped launcher such as
+`claude2` for each additional account.
+
+Read [references/claude-code-multi-account-windows.md](references/claude-code-multi-account-windows.md)
+before changing account entries. It defines the supported authentication boundary and
+the complete discovery, apply, verify, and rollback workflow. Use
+`scripts/manage_claude_code_account.ps1` for Windows:
+
+```powershell
+& '<skill-dir>\scripts\manage_claude_code_account.ps1' -Action Discover -Name claude2
+```
+
+The script is parameterized: future entries such as `claude3` use the same mechanism.
+It only creates or removes an exactly matched marked launcher and never reads, copies,
+or changes credential files. `Verify` asks the CLI for its status in memory only and
+refuses to claim account isolation while a known process-level provider or profile
+selector is present. Do not use it for Codex accounts, and do not claim isolation for
+IDE extension hosts or unsupported keyless Claude Console dual-login flows.
+
+To preview distribution of just this on-demand Skill to Claude Code without trying to
+replace every locally installed Skill, use the repository's focused profile:
+
+```powershell
+python scripts/distribute_skills.py --profile claude-code-multi-account --target claude
+```
+
+That command is a dry run. Add `--apply` only after reviewing its plan; if it detects
+an existing unmanaged copy, inspect it and decide explicitly whether `--adopt-existing`
+is appropriate.

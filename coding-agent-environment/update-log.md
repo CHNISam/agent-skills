@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-07
+
+**变化：沉淀 Claude Code 多账号（Windows）可复用流程**
+
+- 使用 Anthropic 官方 `CLAUDE_CONFIG_DIR` 机制隔离第二及后续 Claude Code 账号的配置、历史、插件和登录状态。
+- 新增参数化 PowerShell 管理脚本，提供 discovery / apply / verify / rollback；它生成受管理的 `.cmd` launcher，保留原有 `claude`，并可扩展为 `claude2`、`claude3` 等入口。
+- 脚本只处理路径和受管理 launcher，不输出、复制、写入或删除认证文件、OAuth token、API key 或账号信息。Rollback 保留账号状态目录。
+- Verify 会拒绝已知的进程级云提供商、token、profile 或 federation 选择变量，避免把目录隔离误报为账号隔离。
+
+**原因：**
+
+现有 PowerShell profile 函数已验证可隔离第二账号，但在无 profile shell 或被执行策略阻止加载的 Windows PowerShell 中不可用。进程局部 `.cmd` launcher 提供同样的官方机制，并保持主账号不受影响。
+
+**验证边界：**
+
+- 仅覆盖 Claude Code 终端 CLI；不配置 Codex 多账号，也不承诺 IDE extension host 的账号隔离。
+- 仅适用于 Claude.ai OAuth/订阅或独立 API-key 流程。官方说明 keyless Claude Console 双登录位于配置目录外，不能据此宣称已隔离。
+
 ## 2026-08-25
 
 **变化：建立基线，四个 Agent 首次统一**

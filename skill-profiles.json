@@ -24,6 +24,9 @@
       "systematic-debugging",
       "skill-creator"
     ],
+    "claude-code-multi-account": [
+      "coding-agent-environment"
+    ],
     "all": "*"
   },
   "targets": {
