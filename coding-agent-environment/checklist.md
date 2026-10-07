@@ -15,6 +15,17 @@
 for c in codex claude opencode; do printf "%-10s " "$c"; command -v $c >/dev/null && $c --version 2>&1 | head -1 || echo MISSING; done
 ```
 
+## Claude Code 多账号（Windows，按需）
+
+只在需要多个 Claude Code 账号时执行；详细边界和命令见
+`references/claude-code-multi-account-windows.md`。
+
+- [ ] **主账号不变** — `claude --version` 与 `claude auth status --json` 成功；不要将后者的账号详情写入日志。
+- [ ] **第二入口独立** — `claude2 --version` 成功，且管理脚本的 `Verify` 报告独立配置目录与 `LoggedIn: True`。
+- [ ] **不会覆盖主目录** — `claude2` 的 `ConfigDirectory` 不等于 `Discover` / `Verify` 报告的 `PrimaryConfigDirectory`（默认是 `$HOME\.claude`）；不要复制认证文件。
+- [ ] **幂等** — 对同一个 `Name` / `ConfigDirectory` 重复执行 `Apply`，受管理 launcher 内容不变。
+- [ ] **可回滚** — `Rollback` 只删除有管理标记的 launcher，保留独立账号状态目录。
+
 ## MCP
 
 基线只有 Context7。四个 Agent 必须一致。

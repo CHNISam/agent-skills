@@ -21,3 +21,18 @@ jobs:
         run: python scripts/validate_repo.py
       - name: Test the skill distributor
         run: python -m unittest discover -s tests -p "test_*.py" -v
+
+  windows-claude-code-account-smoke:
+    # The launcher is intentionally Windows-specific; Ubuntu can validate its
+    # metadata but cannot exercise cmd.exe, PowerShell command resolution, or
+    # process-scoped CLAUDE_CONFIG_DIR behavior.
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Exercise the Windows Claude Code account launcher with a fake CLI
+        shell: pwsh
+        run: python -m unittest tests.test_claude_code_multi_account -v
