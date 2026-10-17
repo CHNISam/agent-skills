@@ -27,6 +27,9 @@
     "claude-code-multi-account": [
       "coding-agent-environment"
     ],
+    "hunyuan3d": [
+      "hunyuan3d-workflow"
+    ],
     "all": "*"
   },
   "targets": {

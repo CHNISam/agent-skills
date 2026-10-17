@@ -1,0 +1,4 @@
+interface:
+  display_name: "混元 3D 工作流"
+  short_description: "国内与国际官网及代理 MCP 的额度核对、模型试产、打磨与交付"
+  default_prompt: "使用 $hunyuan3d-workflow 核对可用免费额度，按本次预算完成模型生成或打磨并交付可查看的结果。"

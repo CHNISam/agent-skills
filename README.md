@@ -68,6 +68,9 @@ personal skills untouched.
 `authoring` adds `skill-creator`. `all` exposes the entire library, including domain,
 vendor, and format skills; use it deliberately.
 
+`hunyuan3d` installs only `hunyuan3d-workflow` for China/international Hunyuan 3D
+web workflows and the tested proxy MCP route, with separate quota accounting.
+
 Everything outside a profile is still available on demand — `brainstorming`,
 `test-driven-development`, the document/format skills, and the domain skills load when
 their specific task appears. None of them is mandatory because a repository happens to use
