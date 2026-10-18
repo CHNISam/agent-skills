@@ -165,6 +165,10 @@ function ConvertTo-CmdPathLiteral {
         $prefix = $trimmedRoot + [System.IO.Path]::DirectorySeparatorChar
         if ($resolvedValue.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
             $relative = $resolvedValue.Substring($trimmedRoot.Length)
+            # A broader root (for example LOCALAPPDATA around TEMP) can leave
+            # non-ASCII text that a later, narrower USERPROFILE root removes.
+            # Only select roots whose remaining literal fits the .cmd format.
+            if ($relative -match '[^\x00-\x7F]') { continue }
             return ('%' + $variable + '%' + (ConvertTo-CmdLiteral $relative))
         }
     }
