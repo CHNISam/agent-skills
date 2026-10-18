@@ -125,6 +125,9 @@ class ClaudeCodeMultiAccountSkillTests(unittest.TestCase):
             environment["Path"] = updated_path
             environment["PATH"] = updated_path
             environment["USERPROFILE"] = str(unicode_home)
+            # Hosted Windows runners keep TEMP below LOCALAPPDATA. A broader
+            # matching root must not hide USERPROFILE's ASCII-only suffix.
+            environment["LOCALAPPDATA"] = str(root)
             # Give the fake primary CLI a valid process-scoped primary directory.
             # This also exercises the manager's effective-primary guard without
             # relying on the real user's home directory.
