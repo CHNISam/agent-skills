@@ -31,15 +31,15 @@ GitHub connectors, Git credentials, and `gh` authentication are separate.
 
 Stop a denied route. Do not tunnel, change hosts/proxies, extract connector tokens, or
 use browser cookies to bypass restrictions. An independently authorized connector can
-still perform supported repository work if that is allowed; disclose that native Git
-remains unverified. Connector reads alone do not prove push, worktree, or test support.
+still perform supported repository work if that is allowed; disclose native Git and gh capabilities separately as unverified. Connector reads alone do not prove push, worktree, or test support.
 
 ## Prepare storage only when needed
 
 Reuse an existing approved credential store when available. If the normal paths are
 unwritable, discover a writable, access-restricted directory in the cloud workspace
 outside every repository, shared folder, and published artifact. Keep its location
-session-local; do not hard-code a previous task path into this skill.
+session-local; do not hard-code a previous task path into this skill. If no compliant
+private writable location exists, stop and report the storage blocker.
 
 - Set `GH_CONFIG_DIR` to a private configuration directory.
 - If Git's global config is unwritable, set `GIT_CONFIG_GLOBAL` to a writable private
