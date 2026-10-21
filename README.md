@@ -59,6 +59,7 @@ personal skills untouched.
 | `automated-testing-workflow` | requirements-first test strategy, quality, and completion evidence |
 | `context-retrieval` | cheapest-capable retrieval ladder |
 | `git-workflow` | Git conventions and history safety |
+| `release-please` | Version/release PRs, SemVer, changelog and GitHub tagging, with explicit 0.x policy |
 | `git-branch-experiment-management` | experiment lifecycle and concurrent-writer isolation |
 | `init-repository-governance` | help a project write its own agent guidance and gates |
 | `large-change-review` | semantic whole-diff review for broad or materially high-risk changes |

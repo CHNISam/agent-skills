@@ -1,0 +1,6 @@
+Upstream: https://github.com/zenobi-us/dotfiles
+Source: mise/conf.d/devtools-agent/bundles/developer/skills/devtools/release-please/
+Revision: 027c8c80863883533ad1a0fc05669c482fc9a89d
+License: MIT (see LICENSE.txt)
+Changes: action examples updated to v5; explicit repository-owned pre-1.0 policy,
+release-gating, retrospective history migration, and single-version-source checks.
