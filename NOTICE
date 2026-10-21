@@ -8,6 +8,11 @@ skills authored here are released under the MIT License.
 Known upstreams
 ---------------
 
+- Zenobi dotfiles release-please skill (zenobi-us/dotfiles, MIT) — adopted at
+  027c8c80863883533ad1a0fc05669c482fc9a89d. Bundled under release-please/,
+  adapted for 0.x policy, release approval gates and current action version.
+  See release-please/NOTICE and release-please/LICENSE.txt.
+
 - Anthropic Skills (anthropics/skills, MIT) — e.g. docx, pdf, pptx, xlsx, canvas-design,
   frontend-design, mcp-builder, brand-guidelines, artifacts tooling, skill-creator,
   slack-gif-creator, webapp-testing. Each carries its upstream LICENSE.txt.

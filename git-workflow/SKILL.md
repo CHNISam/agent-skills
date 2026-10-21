@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: "Git branching strategies, Conventional Commits, hooks, code review, and release/monorepo CI. Use when designing branch strategy, enforcing commit conventions, wiring Husky/commitlint, automating releases (semantic-release/release-please), setting up CODEOWNERS/monorepo CI, or deciding rebase vs cherry-pick vs force-push."
+description: "Git branching, Conventional Commits, hooks, review, monorepo CI and history safety. Use for commits, branch/PR strategy and safe Git operations; use the release-please skill for SemVer, changelogs, tags and release automation."
 ---
 
 # Git Workflow
@@ -10,7 +10,7 @@ Workflow core below; deep configuration lives in `references/` and loads only wh
 | Need | Reference |
 |---|---|
 | Husky v9 / lint-staged / commitlint wiring, PR template | [references/hooks.md](references/hooks.md) |
-| semantic-release / release-please, tag signing | [references/release-automation.md](references/release-automation.md) |
+| SemVer, changelog, tags and releases | [release-please](../release-please/SKILL.md), subject to the target repository's release gate |
 | Nx/Turborepo affected builds, CODEOWNERS, CI matrix | [references/monorepo-ci.md](references/monorepo-ci.md) |
 | `.gitignore` baselines per language | [references/gitignore.md](references/gitignore.md) |
 
@@ -45,12 +45,14 @@ per writer), use the `git-branch-experiment-management` skill.
 [optional footer(s)]
 ```
 
-| Type | SemVer Bump | Example |
+| Type | Meaning | Example |
 |---|---|---|
-| `fix` | PATCH | `fix(auth): handle expired refresh tokens` |
-| `feat` | MINOR | `feat(api): add pagination to /users` |
-| `feat!` or `BREAKING CHANGE:` | MAJOR | `feat(api)!: remove v1 endpoints` |
-| `chore`, `docs`, `ci`, `refactor`, `test`, `perf` | none | `ci: add Node 24 to matrix` |
+| `fix` | Bug fix | `fix(auth): handle expired refresh tokens` |
+| `feat` | New feature | `feat(api): add pagination to /users` |
+| `feat!` or `BREAKING CHANGE:` | Incompatible change | `feat(api)!: remove v1 endpoints` |
+| `chore`, `docs`, `ci`, `refactor`, `test`, `perf` | Other changes; classify real behavior as needed | `ci: add Node 24 to matrix` |
+
+Commit types are inputs to release analysis, not automatic permission to publish. For version bumping, batch boundaries, and pre-1.0 policies, follow the [release-please](../release-please/SKILL.md) skill and the target repository's release rules.
 
 If the repository already has a commit convention, changelog format, or release
 tooling that reads commit messages, follow it. Introduce Conventional Commits where
