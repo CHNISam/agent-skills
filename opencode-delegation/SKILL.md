@@ -38,6 +38,12 @@ Then inspect file scope and the complete diff; independently run the relevant ch
 
 Report model/provider, task, actual result, independent verification, and cost evidence. Event cost zero is not a billing-ledger audit; do not claim measured quota savings without a baseline.
 
+## Check the actual yield
+
+Use the existing task notes for a compact record: accepted deliverable, wall time, orchestration/repair attempts, independent review and test outcome, and model tokens/cost when observed. Mark unknown Codex quota usage as unknown. Compare total coordination plus execution plus rework with direct completion; a free call with no usable result is overhead.
+
+Broaden the task class or concurrency only after accepted examples show useful quality and reduced supervisor burden. Repeated startup stalls, permission spirals, fabricated tool use, or expensive review are reasons to fall back and fix the narrow demonstrated harness defect. Keep the business task moving; optional orchestration experiments must not hold it open.
+
 ## Bounded concurrency
 
 When the user/project permits it, test two independent CLI sessions with disjoint worktrees, writable paths, artifacts, and task ownership. Never concurrently edit one file, share a mutable build directory, or race the same task-tracker record.
