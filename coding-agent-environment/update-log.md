@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-10-24 / OpenCode delegation
+
+Added the reusable `opencode-delegation` skill to core/authoring and installed it through the existing distributor into the shared user skills root. It captures verified free-model locking, maximum supported reasoning, bounded code slices, actual tool/diff acceptance, and cautious isolated concurrency. Repository structure, skill metadata, and all 15 distributor tests passed; the installed entrypoint matches source. No CLI provider credentials or global OpenCode configuration were changed.
+
 ## 2026-10-07
 
 **变化：沉淀 Claude Code 多账号（Windows）可复用流程**

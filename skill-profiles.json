@@ -11,7 +11,8 @@
       "preventing-repeat-failures",
       "init-repository-governance",
       "large-change-review",
-      "systematic-debugging"
+      "systematic-debugging",
+      "opencode-delegation"
     ],
     "authoring": [
       "ask-questions-if-underspecified",
@@ -24,7 +25,8 @@
       "init-repository-governance",
       "large-change-review",
       "systematic-debugging",
-      "skill-creator"
+      "skill-creator",
+      "opencode-delegation"
     ],
     "claude-code-multi-account": [
       "coding-agent-environment"
