@@ -65,6 +65,7 @@ personal skills untouched.
 | `large-change-review` | semantic whole-diff review for broad or materially high-risk changes |
 | `preventing-repeat-failures` | route a failure to the smallest durable protection, at the right scope |
 | `systematic-debugging` | evidence → falsifiable hypothesis → smallest experiment → root fix |
+| `opencode-delegation` | bounded free-model CLI execution, highest supported reasoning, independent acceptance and isolated concurrency |
 
 `authoring` adds `skill-creator`. `all` exposes the entire library, including domain,
 vendor, and format skills; use it deliberately.
