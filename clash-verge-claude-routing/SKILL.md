@@ -1,54 +1,50 @@
 ---
 name: clash-verge-claude-routing
-description: This skill should be used when configuring or repairing Claude, Claude Code, or Anthropic traffic routing in Clash Verge Rev on Windows, especially when Rule Mode fails, Claude domains take mixed exits, or a fixed proxy node is required for IP consistency.
+description: Configure or repair Claude, Claude Code, and Anthropic traffic routing in Clash Verge Rev on Windows when domains take mixed exits or the user needs a fixed exit or manual country-restricted proxy choices.
 ---
 
 # Clash Verge Claude Routing
 
-## Overview
-
-Configure the active Clash Verge Rev profile so Anthropic traffic uses one dedicated, fixed proxy group in Rule Mode. Preserve local and private-network access, cover current Anthropic domains, add a Claude process fallback, validate the generated Mihomo configuration, and roll back automatically on failure.
+Route Claude traffic through a dedicated selector in Rule Mode. Default to one fixed leaf; when requested, provide multiple explicitly approved leaf nodes for manual switching. Never add automatic fallback or a general proxy group.
 
 ## Workflow
 
-1. Read `references/routing-policy.md` before changing routing policy or endpoint coverage.
-2. Locate the bundled script at `scripts/configure_clash_verge_claude.ps1`.
-3. Run a discovery-only preview first:
+1. Read [routing-policy.md](references/routing-policy.md) for endpoint coverage, official sources, and validation criteria. Recheck official sources when updating coverage.
+2. Preview the active subscription and resolved exit without writing:
 
 ```powershell
 & '<skill-dir>\scripts\configure_clash_verge_claude.ps1' -WhatIf
 ```
 
-4. Review the reported active profile, enhancement files, and resolved fixed proxy. Pass `-ProxyName '<exact node name>'` when the current Global selection is not the intended long-term Claude exit.
-5. Apply only after the user has authorized the routing change. The default writes and backs up profile enhancements without reloading Clash Verge, so active connections remain untouched:
+3. Record the reported profile UID before the user switches subscriptions. Apply with `-ExpectedProfileUid '<uid>'` to refuse changes to the wrong subscription. The script operates on the active profile only. If the intended profile is now inactive, do not modify the replacement subscription: use the already identified enhancement files with backup and offline validation, or wait for an authorized switch back.
+4. For a fixed exit, pass `-ProxyName '<exact node name>'`. For requested manual alternatives, pass an explicit list of leaf names:
 
 ```powershell
-& '<skill-dir>\scripts\configure_clash_verge_claude.ps1' -ProxyName '<exact node name>' -Confirm:$false
+& '<skill-dir>\scripts\configure_clash_verge_claude.ps1' -ExpectedProfileUid '<uid>' -ProxyNames @('<verified US node 1>', '<verified US node 2>') -WhatIf
 ```
 
-6. Use `-ReloadNow` only when the user explicitly authorizes a brief Clash Verge interruption. Without it, report `PendingReload: true`; an inactive profile will pick up its enhancements when the user later selects it.
-7. Report the backup path printed by the script. Keep backups under the Clash Verge configuration directory, never at a drive root.
-8. After an authorized reload, verify real traffic from Claude Code or the requested Claude client. Prefer a harmless authenticated status check; use a minimal model request only when the user authorizes a request that may consume quota.
-9. Inspect the latest Clash service log and require Anthropic connections to show `using Claude[<fixed node>]`. Treat route logs as proof of routing even when an unauthenticated HTTP probe returns 4xx or times out after the connection is established.
+When a country restriction applies, verify each candidate's actual egress country before adding it; a flag or node label is insufficient. Probe through a separate local-only Mihomo instance with each listener pinned to one leaf, no TUN, no system proxy changes, no controller, and unmatched traffic rejected. Never rotate the live GLOBAL selector to run tests. Record source, timestamp, IP and country; distinguish independent geolocation failures from contradictory results. Exclude unverified or contradictory candidates. Tests describe the observed exit, not its future location or provider reputation.
 
-## Safety Rules
+5. Once routing changes are authorized, repeat the exact reviewed command without `-WhatIf`, adding `-Confirm:$false`. The default backs up and writes profile enhancements without restarting or reloading Clash.
+6. Reload only after explicit authorization for a brief network interruption. Otherwise report `PendingReload: true`; an inactive profile loads enhancements when the user selects it. Do not restart the user's replacement subscription merely to refresh an inactive one.
+7. Report the backup path. After loading, test the generated configuration with Mihomo, verify Rule Mode and the allowed selector candidates, then inspect fresh service logs for actual traffic using `Claude[<approved node>]`. A 4xx HTTP response can establish routing with corresponding logs; do not send quota-consuming model requests without authorization.
 
-- Edit the active profile enhancement files, not the generated `clash-verge.yaml`, so subscription refreshes preserve the policy.
-- Keep reload and mode switching opt-in. Never restart Clash Verge merely to validate while the user depends on its connection.
-- Create a single-node `Claude` selector. Do not add automatic fallback; fail closed when the fixed node disappears.
-- Keep localhost, loopback, RFC1918, CGNAT, and IPv6 local ranges ahead of the process rule so local MCP servers remain reachable.
-- Route the four Anthropic-owned suffixes plus `claude.exe`; avoid routing all of `sentry.io` or unrelated shared telemetry domains globally.
-- Set `find-process-mode: always` to make the Windows process fallback deterministic.
-- Refuse `DIRECT`, `REJECT`, or an unresolved group as the fixed Claude node.
-- Preserve unrelated enhancement entries and make managed blocks idempotent.
-- Do not promise that fixed routing prevents account enforcement. State that it reduces mixed-exit risk only.
+## Invariants
 
-## Rollback
+- Modify subscription enhancement files, not generated `clash-verge.yaml`; preserve unrelated entries and keep managed blocks idempotent.
+- Keep local/private exclusions ahead of the process fallback for local MCP access. Set `find-process-mode: always`.
+- Cover all six official suffixes, documented API networks, precise telemetry hosts, and Claude executable names from the reference. Do not route entire shared telemetry/CDN providers indiscriminately.
+- Candidates must be real leaf proxies. Reject DIRECT, REJECT, PASS, missing nodes and unresolved groups. Use manual `select`, never fallback, load balancing or URL testing for Claude.
+- A configured rule covers traffic reaching Clash; inspect the requested client's proxy/TUN path and verify runtime logs before claiming end-to-end coverage. Node selection and country checks cannot establish nationality or guarantee protection from account enforcement.
 
-Restore a backup created by the script:
+## Validation and rollback
+
+Run `scripts/test_claude_routing.ps1` after script changes; it uses temporary fixtures and mock controller responses without touching live configuration.
+
+Restore the script's backup without interrupting traffic:
 
 ```powershell
 & '<skill-dir>\scripts\configure_clash_verge_claude.ps1' -RestoreBackup '<backup-directory>' -Confirm:$false
 ```
 
-Restore files without a reload by default. Add `-ReloadNow` only when the user authorizes interruption; otherwise report that the restored profile will take effect on its next normal load.
+Add `-ReloadNow` only with explicit interruption authorization. Report pending reload otherwise.

@@ -2,6 +2,8 @@
 param(
     [string]$ConfigRoot = (Join-Path $env:APPDATA 'io.github.clash-verge-rev.clash-verge-rev'),
     [string]$ProxyName,
+    [string[]]$ProxyNames = @(),
+    [string]$ExpectedProfileUid,
     [string]$GroupName = 'Claude',
     [string]$RestoreBackup,
     [switch]$ReloadNow
@@ -59,7 +61,7 @@ function ConvertTo-YamlSingleQuoted {
 }
 
 function Set-GroupEnhancement {
-    param([string]$Path, [string]$Name, [string]$Node)
+    param([string]$Path, [string]$Name, [string[]]$Nodes)
 
     $text = [System.IO.File]::ReadAllText($Path)
     $text = Remove-ManagedBlock $text
@@ -71,7 +73,7 @@ function Set-GroupEnhancement {
         ('- name: ' + (ConvertTo-YamlSingleQuoted $Name))
         '  type: select',
         '  proxies:',
-        ('  - ' + (ConvertTo-YamlSingleQuoted $Node))
+        $(foreach ($node in $Nodes) { '  - ' + (ConvertTo-YamlSingleQuoted $node) })
     )
     $text = Insert-PrependBlock $text $block
     Write-Utf8Atomic $Path $text
@@ -95,7 +97,14 @@ function Set-RuleEnhancement {
         "- DOMAIN-SUFFIX,claude.ai,$Name",
         "- DOMAIN-SUFFIX,claude.com,$Name",
         "- DOMAIN-SUFFIX,claudeusercontent.com,$Name",
-        "- PROCESS-NAME,claude.exe,$Name"
+        "- DOMAIN-SUFFIX,claude.app,$Name",
+        "- DOMAIN-SUFFIX,claudemcpcontent.com,$Name",
+        "- DOMAIN,http-intake.logs.us5.datadoghq.com,$Name",
+        "- DOMAIN,browser-intake-us5-datadoghq.com,$Name",
+        "- IP-CIDR,160.79.104.0/23,$Name,no-resolve",
+        "- IP-CIDR6,2607:6bc0::/48,$Name,no-resolve",
+        "- PROCESS-NAME,claude.exe,$Name",
+        "- PROCESS-NAME,Claude.exe,$Name"
     )
 
     $text = [System.IO.File]::ReadAllText($Path)
@@ -221,9 +230,28 @@ function Resolve-LeafProxy {
         if ($name -in @('DIRECT', 'REJECT', 'REJECT-DROP', 'PASS', 'COMPATIBLE')) {
             throw "Unsafe fixed Claude exit: $name"
         }
+        if ($item.PSObject.Properties['all']) { throw "Unresolved proxy group: $name" }
         return $name
     }
     throw 'Proxy selection depth exceeded 20'
+}
+
+function Resolve-ClaudeCandidates {
+    param($Connection, [string]$Primary, [string[]]$Candidates = @())
+
+    if ($Primary -and $Candidates.Count -gt 0) { throw 'Use either ProxyName or ProxyNames, not both' }
+    if ($Candidates.Count -eq 0) { return Resolve-LeafProxy $Connection $Primary }
+    $proxyMap = (Invoke-CoreGet $Connection '/proxies').proxies
+    $seen = @{}
+    foreach ($candidate in $Candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { throw 'Empty proxy candidate' }
+        $property = $proxyMap.PSObject.Properties[$candidate]
+        if (-not $property) { throw "Proxy not found: $candidate" }
+        if ($property.Value.PSObject.Properties['all']) { throw "Candidate must be a leaf proxy: $candidate" }
+        $leaf = Resolve-LeafProxy $Connection $candidate
+        if ($leaf -ne $candidate) { throw "Candidate resolved to a different proxy: $candidate" }
+        if (-not $seen.ContainsKey($leaf)) { $seen[$leaf] = $true; $leaf }
+    }
 }
 
 function New-Backup {
@@ -281,7 +309,7 @@ function Restart-ClashVerge {
 }
 
 function Test-ActiveConfiguration {
-    param([string]$Root, $Connection, [string]$Name, [string]$Node)
+    param([string]$Root, $Connection, [string]$Name, [string[]]$Nodes)
 
     $generated = Join-Path $Root 'clash-verge.yaml'
     $mihomo = (Get-Process -Name 'verge-mihomo' -ErrorAction SilentlyContinue | Select-Object -First 1).Path
@@ -294,14 +322,21 @@ function Test-ActiveConfiguration {
     $group = Invoke-CoreGet $Connection ("/proxies/$encodedName")
     if ($core.mode -ne 'rule') { throw "Runtime mode is $($core.mode), not rule" }
     if ($core.'find-process-mode' -ne 'always') { throw 'find-process-mode is not always' }
-    if ($group.now -ne $Node -or @($group.all).Count -ne 1) { throw 'Claude group is not pinned to exactly one expected node' }
+    if ($group.now -notin $Nodes -or @(Compare-Object @($group.all) $Nodes).Count -ne 0) { throw 'Claude group contains or selects an unexpected proxy' }
 
     $patterns = @(
         "DOMAIN-SUFFIX,anthropic.com,$Name",
         "DOMAIN-SUFFIX,claude.ai,$Name",
         "DOMAIN-SUFFIX,claude.com,$Name",
         "DOMAIN-SUFFIX,claudeusercontent.com,$Name",
-        "PROCESS-NAME,claude.exe,$Name"
+        "DOMAIN-SUFFIX,claude.app,$Name",
+        "DOMAIN-SUFFIX,claudemcpcontent.com,$Name",
+        "DOMAIN,http-intake.logs.us5.datadoghq.com,$Name",
+        "DOMAIN,browser-intake-us5-datadoghq.com,$Name",
+        "IP-CIDR,160.79.104.0/23,$Name,no-resolve",
+        "IP-CIDR6,2607:6bc0::/48,$Name,no-resolve",
+        "PROCESS-NAME,claude.exe,$Name",
+        "PROCESS-NAME,Claude.exe,$Name"
     )
     $content = [System.IO.File]::ReadAllText($generated)
     foreach ($pattern in $patterns) {
@@ -325,8 +360,12 @@ if ($RestoreBackup) {
 }
 
 $profile = Get-ProfileEnhancements $ConfigRoot
+if ($ExpectedProfileUid -and $profile.CurrentUid -ne $ExpectedProfileUid) {
+    throw "Active profile changed: expected $ExpectedProfileUid, found $($profile.CurrentUid). No files changed."
+}
 $connection = Get-CoreConnection $ConfigRoot
-$resolvedProxy = Resolve-LeafProxy $connection $ProxyName
+$resolvedProxies = @(Resolve-ClaudeCandidates $connection $ProxyName @($ProxyNames))
+$resolvedProxy = $resolvedProxies[0]
 $configPath = Join-Path $ConfigRoot 'config.yaml'
 $files = @($profile.MergePath, $profile.GroupsPath, $profile.RulesPath)
 if ($ReloadNow) { $files += $configPath }
@@ -334,19 +373,20 @@ if ($ReloadNow) { $files += $configPath }
 Write-Output ([pscustomobject]@{
     ProfileUid = $profile.CurrentUid
     FixedProxy = $resolvedProxy
+    Candidates = $resolvedProxies
     MergeFile = $profile.MergePath
     GroupsFile = $profile.GroupsPath
     RulesFile = $profile.RulesPath
     PersistentConfig = $configPath
 })
 
-$action = if ($ReloadNow) { "Pin $GroupName to $resolvedProxy and reload in Rule Mode" } else { "Prepare $GroupName pinned to $resolvedProxy without reloading" }
+$action = if ($ReloadNow) { "Configure $GroupName with $($resolvedProxies.Count) manual candidates and reload in Rule Mode" } else { "Prepare $GroupName with $($resolvedProxies.Count) manual candidates without reloading" }
 if (-not $PSCmdlet.ShouldProcess($ConfigRoot, $action)) { return }
 
 $backupDirectory = New-Backup $ConfigRoot $files $profile.CurrentUid
 try {
     Set-ScalarValue $profile.MergePath 'find-process-mode' 'always'
-    Set-GroupEnhancement $profile.GroupsPath $GroupName $resolvedProxy
+    Set-GroupEnhancement $profile.GroupsPath $GroupName $resolvedProxies
     Set-RuleEnhancement $profile.RulesPath $GroupName
     if (-not $ReloadNow) {
         Write-Output ([pscustomobject]@{
@@ -355,6 +395,7 @@ try {
             ProfileUid = $profile.CurrentUid
             Group = $GroupName
             FixedProxy = $resolvedProxy
+            Candidates = $resolvedProxies
             Backup = $backupDirectory
         })
         return
@@ -362,7 +403,7 @@ try {
     Set-ScalarValue $configPath 'mode' 'rule'
     $connection = Restart-ClashVerge $ConfigRoot
     Invoke-WebRequest -UseBasicParsing -Uri ($connection.BaseUri + '/configs') -Method Patch -Headers $connection.Headers -ContentType 'application/json' -Body '{"mode":"rule"}' | Out-Null
-    Test-ActiveConfiguration $ConfigRoot $connection $GroupName $resolvedProxy
+    Test-ActiveConfiguration $ConfigRoot $connection $GroupName $resolvedProxies
 } catch {
     $failure = $_
     try {
@@ -380,5 +421,6 @@ Write-Output ([pscustomobject]@{
     ProfileUid = $profile.CurrentUid
     Group = $GroupName
     FixedProxy = $resolvedProxy
+    Candidates = $resolvedProxies
     Backup = $backupDirectory
 })
