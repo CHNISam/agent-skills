@@ -11,6 +11,16 @@ When you have multiple unrelated failures (different test files, different subsy
 
 **Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
 
+## Personal Codex Defaults
+
+These are the user's delegation preferences; newer user instructions override them.
+
+- Keep decisions, integration, and acceptance with the main Codex agent. For substantive implementation, diagnosis, and independent review, default to `gpt-6.1-sol` with `medium` reasoning. Verify model availability before selecting it; do not silently substitute a new model.
+- Use main-thread tools for CI waiting, simple status checks, and result summaries. If a subagent is necessary for that lightweight work, use `low` reasoning; do not downgrade substantive fixes or reviews to save waiting cost.
+- Give implementation agents isolated worktrees and explicit file ownership. Keep shared-file edits with one owner and preserve other work.
+- Work in small batches. When a batch finishes, validate it against the repository's gates, obtain the required independent review, and integrate it before starting the next implementation batch. While waiting, do independent preparation or read-only audits instead of accumulating unintegrated implementation.
+- Track the user's milestone separately from individual PRs: a completed local slice or PR does not establish that the milestone is complete.
+
 ## When to Use
 
 ```dot
