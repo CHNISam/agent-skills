@@ -58,6 +58,7 @@ personal skills untouched.
 | `ask-questions-if-underspecified` | resolve material intent/risk ambiguity with minimum friction |
 | `automated-testing-workflow` | requirements-first test strategy, quality, and completion evidence |
 | `context-retrieval` | cheapest-capable retrieval ladder |
+| `dispatching-parallel-agents` | independent delegation with bounded batches and explicit integration ownership |
 | `git-workflow` | Git conventions and history safety |
 | `release-please` | Version/release PRs, SemVer, changelog and GitHub tagging, with explicit 0.x policy |
 | `git-branch-experiment-management` | experiment lifecycle and concurrent-writer isolation |
