@@ -48,3 +48,15 @@ Design references (concepts only, no code imported)
 
 When adopting further upstream code or workflows, record the source URL, version or commit
 SHA, and license in the adopting skill's directory before merging.
+
+First-party methodology consolidation (MIT)
+------------------------------------------
+
+- CHNISam/general-purpose-ai-operating-protocol (Furinya, MIT), frozen source
+  commit 47cb63895b03b9f224763dd45f25b0f528388201: imported the ten
+  non-overlapping `.agents/skills/*/SKILL.md` runtime methods as separate skills.
+  Each imported skill carries its original MIT LICENSE.txt. The distinct
+  repeated-execution risk discipline of `workflow-hardening` was incorporated
+  into `preventing-repeat-failures`. Historical protocol/enforcement/eval
+  artifacts remain accessible in the archival source repository; they are
+  not a maintained runtime dependency of this library.

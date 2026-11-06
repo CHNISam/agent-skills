@@ -48,6 +48,18 @@ Do not add a Skill when a test can reject the failure. Do not add a global rule 
 project invariant owns it. Consolidate or remove an obsolete rule when the new mechanism
 supersedes it; avoid parallel wrappers.
 
+## Repeated automation and workflow hardening
+
+For a repeated, parallel, retryable or externally triggered workflow, assess the
+actual trigger surface, cost/quota per run, concurrency/fan-out amplification,
+side effects, privilege persistence and containment. A green one-off test is not
+proof that repeated execution is operationally acceptable.
+
+Reuse current project tests and normal-path controls before inventing a new
+harness. When a mechanical guard is warranted, demonstrate that the known bad
+case fails **and** a representative allowed case passes, with the guard wired
+into ordinary execution. Cheap one-off work rarely needs new infrastructure.
+
 ## 4. Respect mutation boundaries
 
 Within an authorized implementation task, add project-local regression protection that

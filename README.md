@@ -67,6 +67,12 @@ personal skills untouched.
 | `preventing-repeat-failures` | route a failure to the smallest durable protection, at the right scope |
 | `systematic-debugging` | evidence → falsifiable hypothesis → smallest experiment → root fix |
 | `opencode-delegation` | bounded free-model CLI execution, highest supported reasoning, independent acceptance and isolated concurrency |
+| `capability-sourcing` | source existing capabilities and mature baselines before custom implementation |
+| `decision-analysis` | choose the highest-leverage action from real alternatives, costs and uncertainty |
+| `delegation` | turn validated decisions into a minimal agent execution contract |
+| `modeling` | frame the real problem, challenge assumptions and revalidate work necessity |
+| `project-modeling` | trace outcomes and capabilities to backlog work, ownership and proof |
+| `validation` | distinguish implementation verification from actual outcome validation |
 
 `authoring` adds `skill-creator`. `all` exposes the entire library, including domain,
 vendor, and format skills; use it deliberately.
@@ -83,6 +89,23 @@ Retired from the active surface: `using-superpowers`, `root-cause-and-verificati
 `5-whys-root-cause-analysis`, `pause-and-clarify-riper5`, `verification-before-completion`,
 and `ai-native-sop`. Their useful invariants live once in the skills above;
 `skill-profiles.json` lists them so validation keeps them from reappearing.
+
+
+### General-purpose reasoning consolidation
+
+The reusable methods formerly maintained in
+[`CHNISam/general-purpose-ai-operating-protocol`](https://github.com/CHNISam/general-purpose-ai-operating-protocol)
+now live here as ordinary Agent Skills. Six broadly useful methods are included
+in the `core` profile above. The additional on-demand skills are
+`decision-surface`, `evidence-acquisition`, `observability-coverage`, and `planning`.
+The former `workflow-hardening` method has been folded into
+`preventing-repeat-failures` rather than shipped as a duplicate skill.
+
+This repository is the **only maintained source** for these runtime methods.
+Archive the former Protocol repository **after this change is reviewed, merged,
+installed and confirmed independent of the old repository**. Its canonical document,
+evals, and conformance artifacts remain available as historical source, not as a
+second active operating contract. Individual projects keep their own guidance.
 
 ## Adopt in a project
 
