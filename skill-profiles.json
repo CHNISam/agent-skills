@@ -2,7 +2,6 @@
   "schema_version": 1,
   "profiles": {
     "core": [
-      "ask-questions-if-underspecified",
       "automated-testing-workflow",
       "capability-sourcing",
       "context-retrieval",
@@ -22,7 +21,6 @@
       "validation"
     ],
     "authoring": [
-      "ask-questions-if-underspecified",
       "automated-testing-workflow",
       "capability-sourcing",
       "context-retrieval",
@@ -60,7 +58,10 @@
   },
   "retired_skills": [
     "5-whys-root-cause-analysis",
+    "ai-native-product-spec",
     "ai-native-sop",
+    "apple-design",
+    "ask-questions-if-underspecified",
     "pause-and-clarify-riper5",
     "root-cause-and-verification",
     "using-superpowers",

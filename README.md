@@ -55,7 +55,6 @@ personal skills untouched.
 
 | Skill | Responsibility |
 |---|---|
-| `ask-questions-if-underspecified` | resolve material intent/risk ambiguity with minimum friction |
 | `automated-testing-workflow` | requirements-first test strategy, quality, and completion evidence |
 | `context-retrieval` | cheapest-capable retrieval ladder |
 | `dispatching-parallel-agents` | independent delegation with bounded batches and explicit integration ownership |

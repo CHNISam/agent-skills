@@ -1,4 +1,0 @@
-interface:
-  display_name: "AI Native Product Spec"
-  short_description: "Draft AI-ready product iteration specs"
-  default_prompt: "Use $ai-native-product-spec to turn this product idea into an Agent-Ready Spec for AI-assisted development."
